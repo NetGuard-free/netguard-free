@@ -1,0 +1,31 @@
+# Konfiguracja użytkownika — NIE wgrywaj na GitHub (zawiera dane osobowe)
+config.json
+
+# Logi i baza danych
+*.log
+devices.json
+*.db
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+netguard-env/
+*.egg-info/
+
+# System
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# Tymczasowe
+*.tmp
+*.bak
