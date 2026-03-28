@@ -2,7 +2,7 @@
 
 > Lokalny agent AI który monitoruje Twoją sieć domową, wykrywa zagrożenia i codziennie wysyła raport. Zero chmury. 100% prywatności.
 
-![NetGuard Dashboard](https://raw.githubusercontent.com/dragunarek/netguard/main/docs/screenshot.png)
+![NetGuard Dashboard](https://raw.githubusercontent.com/dragunarek/netguard/main/docs/Screenshot.png)
 
 ---
 
@@ -83,27 +83,32 @@ Zagrożeń:         0
 
 ## Konfiguracja
 
-Edytuj sekcję `CONFIG` w pliku `netguard_agent.py`:
+Przy pierwszym uruchomieniu NetGuard automatycznie uruchamia **wizard konfiguracji** który wykrywa sieć i pyta o podstawowe ustawienia. Konfiguracja jest zapisywana w pliku `config.json`.
 
-```python
-CONFIG = {
-    "network_range": "192.168.1.0/24",    # Twój zakres sieci
-    "interface": "eth0",                   # Interfejs sieciowy
-    "alert_email": "twoj@gmail.com",       # Email do powiadomień
-    "trusted_macs": [
-        "aa:bb:cc:dd:ee:ff",              # Zaufane urządzenia
-    ],
-    "device_names": {
-        "aa:bb:cc:dd:ee:ff": "Mój laptop", # Nazwy urządzeń
-    },
-    "smtp": {
-        "host": "smtp.gmail.com",
-        "port": 587,
-        "user": "twoj@gmail.com",
-        "password": "haslo_aplikacji",     # Hasło aplikacji Gmail
-    },
+Możesz edytować `config.json` bezpośrednio:
+
+```json
+{
+  "network_range": "192.168.1.0/24",
+  "interface": "eth0",
+  "alert_email": "twoj@gmail.com",
+  "dashboard_port": 8767,
+  "trusted_macs": [
+    "aa:bb:cc:dd:ee:ff"
+  ],
+  "device_names": {
+    "aa:bb:cc:dd:ee:ff": "Mój laptop"
+  },
+  "smtp": {
+    "host": "smtp.gmail.com",
+    "port": 587,
+    "user": "twoj@gmail.com",
+    "password": "haslo_aplikacji_gmail"
+  }
 }
 ```
+
+> ⚠️ `config.json` zawiera dane osobowe — nie wgrywaj go na GitHub. Plik jest chroniony przez `.gitignore`.
 
 ---
 
