@@ -1,0 +1,23 @@
+{
+  "network_range": "auto",
+  "interface": "auto",
+  "scan_interval": 60,
+  "packet_capture": true,
+  "llm_model": "llama3.2",
+  "alert_email": "",
+  "dashboard_port": 8767,
+  "max_dns_per_min": 300,
+  "port_scan_threshold": 10,
+  "trusted_macs": [],
+  "blocked_macs": [],
+  "device_names": {},
+  "smtp": {
+    "host": "smtp.gmail.com",
+    "port": 587,
+    "user": "",
+    "password": ""
+  },
+  "router": {
+    "sync_interval": 60
+  }
+}

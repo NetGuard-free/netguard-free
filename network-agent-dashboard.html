@@ -1,0 +1,1783 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NetGuard AI — Agent Sieci Domowej</title>
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
+  :root {
+    --bg: #0a0e14;
+    --bg2: #0f1520;
+    --bg3: #141c2e;
+    --border: #1e2d47;
+    --accent: #00d4ff;
+    --accent2: #00ff88;
+    --warn: #ffaa00;
+    --danger: #ff3366;
+    --text: #c8d8f0;
+    --text2: #6a8aaa;
+    --text3: #3a5a7a;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Scanline overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,212,255,0.015) 2px, rgba(0,212,255,0.015) 4px);
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  /* Header */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 28px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg2);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .logo-icon {
+    width: 36px; height: 36px;
+    border: 2px solid var(--accent);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .logo-icon::before {
+    content: '';
+    position: absolute;
+    width: 18px; height: 18px;
+    background: radial-gradient(circle, var(--accent) 0%, transparent 70%);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 0.6; transform: scale(0.8); }
+    50% { opacity: 1; transform: scale(1.2); }
+  }
+
+  .logo-svg { width: 20px; height: 20px; color: var(--accent); position: relative; z-index: 1; }
+
+  .logo-text h1 { font-family: var(--mono); font-size: 16px; font-weight: 600; color: var(--accent); letter-spacing: 2px; }
+  .logo-text p { font-size: 11px; color: var(--text2); letter-spacing: 1px; }
+
+  .header-status {
+    display: flex; align-items: center; gap: 20px;
+  }
+
+  .status-badge {
+    display: flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 11px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1px solid;
+  }
+
+  .status-badge.ok { color: var(--accent2); border-color: rgba(0,255,136,0.3); background: rgba(0,255,136,0.06); }
+  .status-badge.warn { color: var(--warn); border-color: rgba(255,170,0,0.3); background: rgba(255,170,0,0.06); }
+  .status-badge.danger { color: var(--danger); border-color: rgba(255,51,102,0.3); background: rgba(255,51,102,0.06); }
+
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: blink 1.5s ease-in-out infinite; }
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  .clock { font-family: var(--mono); font-size: 12px; color: var(--text2); }
+
+  /* Layout */
+  .layout {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    grid-template-rows: auto 1fr;
+    min-height: calc(100vh - 69px);
+  }
+
+  /* Sidebar */
+  .sidebar {
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    padding: 20px 0;
+    grid-row: 1 / 3;
+  }
+
+  .nav-section { padding: 0 12px 20px; }
+  .nav-label { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 2px; padding: 0 8px 8px; text-transform: uppercase; }
+
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 13px;
+    color: var(--text2);
+    border: 1px solid transparent;
+    margin-bottom: 2px;
+  }
+
+  .nav-item:hover { background: var(--bg3); color: var(--text); }
+  .nav-item.active { background: rgba(0,212,255,0.08); color: var(--accent); border-color: rgba(0,212,255,0.2); }
+  .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+  .nav-badge {
+    margin-left: auto;
+    background: var(--danger);
+    color: white;
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 10px;
+    min-width: 18px;
+    text-align: center;
+  }
+
+  .nav-badge.warn { background: var(--warn); color: #000; }
+
+  /* Stats strip */
+  .stats-strip {
+    padding: 16px 28px;
+    display: flex;
+    gap: 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg2);
+  }
+
+  .stat-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 20px;
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .stat-card:hover { border-color: var(--accent); }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+
+  .stat-card.blue::before { background: var(--accent); }
+  .stat-card.green::before { background: var(--accent2); }
+  .stat-card.warn::before { background: var(--warn); }
+  .stat-card.danger::before { background: var(--danger); }
+
+  .stat-label { font-size: 11px; color: var(--text2); letter-spacing: 1px; text-transform: uppercase; font-family: var(--mono); }
+  .stat-value { font-family: var(--mono); font-size: 28px; font-weight: 600; margin: 4px 0 2px; }
+  .stat-card.blue .stat-value { color: var(--accent); }
+  .stat-card.green .stat-value { color: var(--accent2); }
+  .stat-card.warn .stat-value { color: var(--warn); }
+  .stat-card.danger .stat-value { color: var(--danger); }
+  .stat-sub { font-size: 11px; color: var(--text2); }
+
+  /* Main content */
+  .main {
+    padding: 24px 28px;
+    overflow-y: auto;
+  }
+
+  .section-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text3);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+
+  /* Panel */
+  .panel {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .panel-title {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--mono); font-size: 12px; font-weight: 600;
+    color: var(--text); letter-spacing: 1px;
+  }
+
+  .panel-title svg { width: 14px; height: 14px; color: var(--accent); }
+
+  .panel-action {
+    font-family: var(--mono); font-size: 10px;
+    color: var(--accent); background: none; border: none; cursor: pointer;
+    padding: 4px 8px; border-radius: 4px;
+    transition: background 0.15s;
+    letter-spacing: 1px;
+  }
+
+  .panel-action:hover { background: rgba(0,212,255,0.1); }
+
+  .panel-body { padding: 14px 18px; }
+
+  /* Device list */
+  .device-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    transition: padding 0.15s;
+    cursor: pointer;
+  }
+
+  .device-item:last-child { border-bottom: none; }
+  .device-item:hover { padding-left: 4px; }
+
+  .device-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .device-dot.online { background: var(--accent2); box-shadow: 0 0 6px var(--accent2); }
+  .device-dot.offline { background: var(--text3); }
+  .device-dot.suspicious { background: var(--warn); box-shadow: 0 0 6px var(--warn); animation: blink 1s infinite; }
+
+  .device-info { flex: 1; min-width: 0; }
+  .device-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .device-meta { font-family: var(--mono); font-size: 10px; color: var(--text2); margin-top: 1px; }
+
+  .device-traffic {
+    text-align: right;
+    font-family: var(--mono); font-size: 11px;
+  }
+
+  .device-traffic .up { color: var(--accent2); }
+  .device-traffic .down { color: var(--accent); }
+
+  .device-tag {
+    font-family: var(--mono); font-size: 10px;
+    padding: 2px 7px; border-radius: 4px;
+    letter-spacing: 0.5px;
+  }
+
+  .tag-new { background: rgba(0,212,255,0.15); color: var(--accent); border: 1px solid rgba(0,212,255,0.3); }
+  .tag-trusted { background: rgba(0,255,136,0.1); color: var(--accent2); border: 1px solid rgba(0,255,136,0.2); }
+  .tag-blocked { background: rgba(255,51,102,0.15); color: var(--danger); border: 1px solid rgba(255,51,102,0.3); }
+  .tag-watch { background: rgba(255,170,0,0.1); color: var(--warn); border: 1px solid rgba(255,170,0,0.2); }
+
+  /* Alert log */
+  .alert-item {
+    display: flex; gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    align-items: flex-start;
+  }
+
+  .alert-item:last-child { border-bottom: none; }
+
+  .alert-icon {
+    width: 28px; height: 28px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .alert-icon svg { width: 14px; height: 14px; }
+
+  .alert-icon.danger { background: rgba(255,51,102,0.15); color: var(--danger); }
+  .alert-icon.warn { background: rgba(255,170,0,0.12); color: var(--warn); }
+  .alert-icon.info { background: rgba(0,212,255,0.1); color: var(--accent); }
+  .alert-icon.ok { background: rgba(0,255,136,0.1); color: var(--accent2); }
+
+  .alert-body { flex: 1; }
+  .alert-title { font-size: 13px; font-weight: 500; line-height: 1.4; }
+  .alert-title span { color: var(--accent); font-family: var(--mono); font-size: 12px; }
+  .alert-meta { font-family: var(--mono); font-size: 10px; color: var(--text2); margin-top: 3px; }
+
+  .alert-dismiss {
+    font-family: var(--mono); font-size: 10px; color: var(--text3);
+    background: none; border: none; cursor: pointer; padding: 4px;
+    transition: color 0.15s;
+  }
+
+  .alert-dismiss:hover { color: var(--danger); }
+
+  /* Traffic chart */
+  .chart-container {
+    height: 120px;
+    position: relative;
+    margin-top: 8px;
+  }
+
+  canvas { width: 100% !important; }
+
+  /* Threat map */
+  .threat-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px;
+  }
+
+  .threat-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    transition: border-color 0.2s;
+  }
+
+  .threat-card:hover { border-color: var(--accent); }
+  .threat-card.active-threat { border-color: var(--danger); background: rgba(255,51,102,0.05); }
+  .threat-card.active-threat .threat-name { color: var(--danger); }
+
+  .threat-name { font-family: var(--mono); font-size: 11px; font-weight: 600; margin-bottom: 6px; letter-spacing: 0.5px; }
+  .threat-bar { height: 4px; background: var(--bg); border-radius: 2px; overflow: hidden; margin-bottom: 6px; }
+  .threat-fill { height: 100%; border-radius: 2px; transition: width 1s ease; }
+  .fill-red { background: var(--danger); }
+  .fill-warn { background: var(--warn); }
+  .fill-blue { background: var(--accent); }
+  .fill-green { background: var(--accent2); }
+  .threat-stats { font-family: var(--mono); font-size: 10px; color: var(--text2); }
+
+  /* AI Chat */
+  .ai-chat {
+    display: flex; flex-direction: column;
+    height: 320px;
+  }
+
+  .chat-messages {
+    flex: 1; overflow-y: auto;
+    padding: 12px 0;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+
+  .chat-messages::-webkit-scrollbar { width: 4px; }
+  .chat-messages::-webkit-scrollbar-track { background: transparent; }
+  .chat-messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .msg {
+    display: flex; gap: 10px; align-items: flex-start;
+  }
+
+  .msg-avatar {
+    width: 26px; height: 26px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; font-family: var(--mono); font-size: 10px;
+    font-weight: 600;
+  }
+
+  .msg-avatar.ai { background: rgba(0,212,255,0.15); color: var(--accent); border: 1px solid rgba(0,212,255,0.3); }
+  .msg-avatar.user { background: rgba(0,255,136,0.1); color: var(--accent2); border: 1px solid rgba(0,255,136,0.2); }
+
+  .msg-bubble {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 12.5px;
+    line-height: 1.6;
+    max-width: calc(100% - 40px);
+  }
+
+  .msg.user { flex-direction: row-reverse; }
+  .msg.user .msg-bubble { background: rgba(0,255,136,0.06); border-color: rgba(0,255,136,0.2); }
+
+  .msg-time { font-family: var(--mono); font-size: 9px; color: var(--text3); margin-top: 3px; text-align: right; }
+
+  .chat-input-area {
+    display: flex; gap: 8px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .chat-input {
+    flex: 1;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .chat-input:focus { border-color: var(--accent); }
+  .chat-input::placeholder { color: var(--text3); }
+
+  .chat-send {
+    background: rgba(0,212,255,0.15);
+    border: 1px solid rgba(0,212,255,0.3);
+    color: var(--accent);
+    border-radius: 8px;
+    padding: 8px 14px;
+    cursor: pointer;
+    font-family: var(--mono); font-size: 11px;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+
+  .chat-send:hover { background: rgba(0,212,255,0.25); }
+
+  /* AI thinking */
+  .typing { display: flex; gap: 4px; align-items: center; padding: 4px 0; }
+  .typing span {
+    width: 5px; height: 5px; background: var(--accent); border-radius: 50%;
+    animation: typing 1.2s infinite;
+  }
+  .typing span:nth-child(2) { animation-delay: 0.2s; }
+  .typing span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes typing { 0%, 60%, 100% { opacity: 0.3; transform: scale(1); } 30% { opacity: 1; transform: scale(1.3); } }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+  .tab {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 1px;
+    padding: 6px 14px; border-radius: 6px;
+    border: 1px solid var(--border);
+    cursor: pointer; transition: all 0.15s;
+    color: var(--text2); background: none;
+  }
+
+  .tab:hover { background: var(--bg3); color: var(--text); }
+  .tab.active { background: rgba(0,212,255,0.1); color: var(--accent); border-color: rgba(0,212,255,0.3); }
+
+  /* Page sections */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* Scrollbar global */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg2); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* Firewall rules */
+  .rule-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono); font-size: 11px;
+  }
+
+  .rule-item:last-child { border-bottom: none; }
+  .rule-action { padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+  .rule-action.allow { background: rgba(0,255,136,0.12); color: var(--accent2); }
+  .rule-action.block { background: rgba(255,51,102,0.12); color: var(--danger); }
+  .rule-desc { flex: 1; color: var(--text); }
+  .rule-desc small { color: var(--text2); display: block; font-size: 10px; margin-top: 1px; }
+  .rule-toggle { background: none; border: 1px solid var(--border); color: var(--text2); border-radius: 4px; padding: 3px 8px; cursor: pointer; font-family: var(--mono); font-size: 10px; transition: all 0.15s; }
+  .rule-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Bandwidth chart */
+  .mini-bar-chart { display: flex; align-items: flex-end; gap: 3px; height: 60px; }
+  .mini-bar { flex: 1; border-radius: 2px 2px 0 0; transition: height 0.5s ease; min-height: 4px; }
+
+  /* Privacy note */
+  .privacy-note {
+    background: rgba(0,255,136,0.05);
+    border: 1px solid rgba(0,255,136,0.2);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 12px;
+    color: var(--accent2);
+    display: flex; gap: 10px; align-items: flex-start;
+    margin-bottom: 20px;
+  }
+
+  .privacy-note svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    .stats-strip { flex-wrap: wrap; }
+  }
+
+  /* ── MODALS ────────────────────────────────────────────── */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    width: 90%;
+    max-width: 540px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    animation: modalIn 0.2s ease;
+  }
+  @keyframes modalIn {
+    from { opacity: 0; transform: translateY(-20px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .modal-title {
+    font-family: var(--mono); font-size: 13px; font-weight: 600;
+    color: var(--accent); letter-spacing: 1px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .modal-close {
+    background: none; border: none; color: var(--text2);
+    font-size: 20px; cursor: pointer; padding: 0 4px; line-height: 1;
+  }
+  .modal-close:hover { color: var(--text); }
+
+  .modal-body { padding: 20px; }
+
+  .modal-row {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 8px 0; border-bottom: 1px solid rgba(30,45,71,0.5);
+    font-size: 13px; gap: 12px;
+  }
+  .modal-row:last-child { border-bottom: none; }
+  .modal-key { color: var(--text2); font-family: var(--mono); font-size: 11px; min-width: 100px; }
+  .modal-val { color: var(--text); text-align: right; word-break: break-all; }
+
+  .modal-input {
+    width: 100%; background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 6px; padding: 8px 12px; color: var(--text);
+    font-family: var(--sans); font-size: 13px; margin-top: 8px;
+    outline: none; transition: border-color 0.2s;
+  }
+  .modal-input:focus { border-color: var(--accent); }
+
+  .modal-hint {
+    background: rgba(0,212,255,0.06); border: 1px solid rgba(0,212,255,0.2);
+    border-radius: 6px; padding: 10px 14px; margin-top: 12px;
+    font-size: 12px; color: var(--accent); display: flex; gap: 8px;
+    align-items: flex-start;
+  }
+  .modal-hint svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 1px; }
+
+  .modal-actions {
+    display: flex; gap: 10px; padding: 16px 20px;
+    border-top: 1px solid var(--border); flex-wrap: wrap;
+  }
+  .btn-primary {
+    background: var(--accent); color: #000; border: none;
+    padding: 8px 18px; border-radius: 6px; font-size: 12px;
+    font-family: var(--mono); font-weight: 600; cursor: pointer;
+    letter-spacing: 0.5px; transition: opacity 0.2s;
+  }
+  .btn-primary:hover { opacity: 0.85; }
+  .btn-success {
+    background: var(--accent2); color: #000; border: none;
+    padding: 8px 18px; border-radius: 6px; font-size: 12px;
+    font-family: var(--mono); font-weight: 600; cursor: pointer;
+    letter-spacing: 0.5px; transition: opacity 0.2s;
+  }
+  .btn-success:hover { opacity: 0.85; }
+  .btn-danger {
+    background: transparent; color: var(--danger);
+    border: 1px solid var(--danger); padding: 8px 18px;
+    border-radius: 6px; font-size: 12px; font-family: var(--mono);
+    cursor: pointer; letter-spacing: 0.5px; transition: all 0.2s;
+  }
+  .btn-danger:hover { background: rgba(255,51,102,0.1); }
+  .btn-secondary {
+    background: transparent; color: var(--text2);
+    border: 1px solid var(--border); padding: 8px 18px;
+    border-radius: 6px; font-size: 12px; font-family: var(--mono);
+    cursor: pointer; transition: all 0.2s; margin-left: auto;
+  }
+  .btn-secondary:hover { color: var(--text); border-color: var(--text2); }
+
+  /* Alert detail */
+  .alert-threat-desc {
+    background: var(--bg3); border-radius: 8px; padding: 14px 16px;
+    font-size: 13px; line-height: 1.7; color: var(--text);
+    margin-top: 12px; border-left: 3px solid var(--warn);
+  }
+  .alert-threat-desc.critical { border-left-color: var(--danger); }
+  .alert-threat-desc.info { border-left-color: var(--accent); }
+
+  .threat-level-badge {
+    display: inline-block; padding: 3px 10px; border-radius: 4px;
+    font-family: var(--mono); font-size: 11px; font-weight: 600;
+    letter-spacing: 1px; margin-top: 10px;
+  }
+  .threat-level-badge.critical { background: rgba(255,51,102,0.15); color: var(--danger); }
+  .threat-level-badge.high     { background: rgba(255,170,0,0.15);  color: var(--warn); }
+  .threat-level-badge.info     { background: rgba(0,212,255,0.1);   color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">
+      <svg class="logo-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
+    </div>
+    <div class="logo-text">
+      <h1>NETGUARD AI</h1>
+      <p>Agent Sieci Domowej — tryb lokalny</p>
+    </div>
+  </div>
+  <div class="header-status">
+    <div class="status-badge ok" id="overall-status">
+      <span class="dot"></span>
+      <span id="status-text">SIEĆ CHRONIONA</span>
+    </div>
+    <div class="clock" id="clock">--:--:--</div>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="nav-section">
+      <div class="nav-label">Dashboard</div>
+      <div class="nav-item active" onclick="showPage('overview')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Przegląd sieci
+      </div>
+      <div class="nav-item" onclick="showPage('devices')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+        Urządzenia
+        <span class="nav-badge warn" id="new-devices-badge">—</span>
+      </div>
+      <div class="nav-item" onclick="showPage('alerts')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        Alerty
+        <span class="nav-badge" id="alerts-badge">—</span>
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Bezpieczeństwo</div>
+      <div class="nav-item" onclick="showPage('threats')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Zagrożenia
+      </div>
+      <div class="nav-item" onclick="showPage('firewall')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        Reguły Firewall
+      </div>
+      <div class="nav-item" onclick="showPage('traffic')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Ruch sieciowy
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Agent AI</div>
+      <div class="nav-item" onclick="showPage('ai')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+        Konsola AI
+      </div>
+      <div class="nav-item" onclick="showPage('setup')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+        Instalacja lokalna
+      </div>
+    </div>
+  </nav>
+
+  <!-- Content -->
+  <div style="display: flex; flex-direction: column; overflow: hidden;">
+
+    <!-- Stats Strip -->
+    <div class="stats-strip">
+      <div class="stat-card blue" onclick="showPage('devices'); setTimeout(()=>{ const btn=document.querySelectorAll('.tabs .tab')[1]; filterDevices('online', btn); },150)" style="cursor:pointer;" title="Przejdź do listy urządzeń online">
+        <div class="stat-label">Urządzenia online</div>
+        <div class="stat-value" id="stat-online">—</div>
+        <div class="stat-sub">w sieci lokalnej →</div>
+      </div>
+      <div class="stat-card warn" onclick="showPage('devices'); setTimeout(()=>{ const btn=document.querySelectorAll('.tabs .tab')[2]; filterDevices('new', btn); },150)" style="cursor:pointer;" title="Przejdź do nowych urządzeń">
+        <div class="stat-label">Nowe urządzenia</div>
+        <div class="stat-value" id="stat-new">—</div>
+        <div class="stat-sub">oczekuje weryfikacji →</div>
+      </div>
+      <div class="stat-card danger" onclick="showPage('alerts')" style="cursor:pointer;" title="Przejdź do alertów">
+        <div class="stat-label">Aktywne alerty</div>
+        <div class="stat-value" id="stat-alerts">—</div>
+        <div class="stat-sub">wymagają uwagi →</div>
+      </div>
+      <div class="stat-card green" onclick="showPage('alerts')" style="cursor:pointer;" title="Przejdź do dziennika zdarzeń">
+        <div class="stat-label">Zdarzenia łącznie</div>
+        <div class="stat-value" id="stat-blocked">—</div>
+        <div class="stat-sub">w bazie agenta →</div>
+      </div>
+    </div>
+
+    <div class="main" id="main-content">
+
+      <!-- OVERVIEW PAGE -->
+      <div class="page active" id="page-overview">
+
+        <div class="privacy-note">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span><strong>Tryb prywatności:</strong> Ten dashboard działa w 100% lokalnie w przeglądarce. Żadne dane sieciowe nie opuszczają Twojego urządzenia. Pełna instalacja agenta Python — patrz zakładka <strong>Instalacja lokalna</strong>.</span>
+        </div>
+
+        <div class="grid-2">
+          <!-- Devices panel -->
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+                URZĄDZENIA W SIECI
+              </div>
+              <button class="panel-action" onclick="showPage('devices')">WSZYSTKIE →</button>
+            </div>
+            <div class="panel-body" id="devices-preview"></div>
+          </div>
+
+          <!-- Alerts panel -->
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                OSTATNIE ALERTY
+              </div>
+              <button class="panel-action" onclick="showPage('alerts')">WSZYSTKIE →</button>
+            </div>
+            <div class="panel-body" id="alerts-preview"></div>
+          </div>
+        </div>
+
+        <!-- Traffic Chart -->
+        <div class="panel" style="margin-bottom: 24px;">
+          <div class="panel-header">
+            <div class="panel-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              RUCH SIECIOWY — OSTATNIA GODZINA
+            </div>
+            <div style="font-family: var(--mono); font-size: 11px; color: var(--text2);">
+              <span style="color: var(--accent);">↓ 142 Mbps</span> &nbsp;
+              <span style="color: var(--accent2);">↑ 28 Mbps</span>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="chart-container">
+              <canvas id="trafficChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Threats -->
+        <div class="section-title">WYKRYTE ZAGROŻENIA — STATUS OCHRONY</div>
+        <div class="threat-grid" id="threat-overview"></div>
+
+      </div>
+
+      <!-- DEVICES PAGE -->
+      <div class="page" id="page-devices">
+        <div class="section-title">WSZYSTKIE URZĄDZENIA W SIECI</div>
+        <div class="tabs">
+          <button class="tab active" onclick="filterDevices('all', this)">Wszystkie</button>
+          <button class="tab" onclick="filterDevices('online', this)">Online</button>
+          <button class="tab" onclick="filterDevices('new', this)">Nowe</button>
+          <button class="tab" onclick="filterDevices('suspicious', this)">Podejrzane</button>
+          <button class="tab" onclick="filterDevices('blocked', this)">Zablokowane</button>
+        </div>
+        <div class="panel">
+          <div class="panel-body" id="devices-full" style="padding: 0 18px;"></div>
+        </div>
+      </div>
+
+      <!-- ALERTS PAGE -->
+      <div class="page" id="page-alerts">
+        <div class="section-title">DZIENNIK ALERTÓW</div>
+        <div class="panel">
+          <div class="panel-body" id="alerts-full"></div>
+        </div>
+      </div>
+
+      <!-- THREATS PAGE -->
+      <div class="page" id="page-threats">
+        <div class="section-title">ANALIZA ZAGROŻEŃ</div>
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel-header"><div class="panel-title">AKTYWNE ZAGROŻENIA</div></div>
+            <div class="panel-body" id="threats-active"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-header"><div class="panel-title">HISTORIA ZAGROŻEŃ (24H)</div></div>
+            <div class="panel-body" id="threats-history"></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-header"><div class="panel-title">MACIERZ RYZYKA</div></div>
+          <div class="panel-body">
+            <div class="threat-grid" id="threat-matrix"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FIREWALL PAGE -->
+      <div class="page" id="page-firewall">
+        <div class="section-title">REGUŁY ZAPORY OGNIOWEJ</div>
+        <div class="panel" style="margin-bottom: 20px;">
+          <div class="panel-header">
+            <div class="panel-title">REGUŁY AKTYWNE</div>
+            <button class="panel-action" onclick="addRule()">+ DODAJ REGUŁĘ</button>
+          </div>
+          <div class="panel-body" id="firewall-rules" style="padding: 0 18px;"></div>
+        </div>
+      </div>
+
+      <!-- TRAFFIC PAGE -->
+      <div class="page" id="page-traffic">
+        <div class="section-title">ANALIZA RUCHU SIECIOWEGO</div>
+        <div class="panel" style="margin-bottom: 20px;">
+          <div class="panel-header"><div class="panel-title">RUCH NA PRZESTRZENI CZASU</div></div>
+          <div class="panel-body">
+            <div class="chart-container" style="height: 180px;">
+              <canvas id="trafficChart2"></canvas>
+            </div>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel-header"><div class="panel-title">TOP URZĄDZENIA — POBIERANIE</div></div>
+            <div class="panel-body" id="top-download"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-header"><div class="panel-title">TOP PORTY — AKTYWNOŚĆ</div></div>
+            <div class="panel-body" id="top-ports"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI CONSOLE PAGE -->
+      <div class="page" id="page-ai">
+        <div class="section-title">KONSOLA AGENTA AI — ASYSTENT BEZPIECZEŃSTWA SIECI</div>
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+              NETGUARD AI — CHAT Z AGENTEM
+            </div>
+            <span style="font-family: var(--mono); font-size: 10px; color: var(--accent2);">● LOKALNY MODEL / BRAK DANYCH NA ZEWNĄTRZ</span>
+          </div>
+          <div class="panel-body">
+            <div class="ai-chat">
+              <div class="chat-messages" id="chat-messages"></div>
+              <div class="chat-input-area">
+                <input class="chat-input" id="chat-input" type="text"
+                  placeholder="Zapytaj agenta... np. 'Jakie urządzenia są podejrzane?' lub 'Pokaż alerty z ostatniej godziny'"
+                  onkeydown="if(event.key==='Enter') sendChat()">
+                <button class="chat-send" onclick="sendChat()">WYŚLIJ →</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top: 16px;">
+          <div class="section-title">SZYBKIE KOMENDY</div>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            <button class="tab" onclick="quickCmd('Pokaż wszystkie aktywne alerty')">Aktywne alerty</button>
+            <button class="tab" onclick="quickCmd('Które urządzenia mają podejrzaną aktywność?')">Podejrzane urządzenia</button>
+            <button class="tab" onclick="quickCmd('Analizuj ruch sieciowy z ostatniej godziny')">Analiza ruchu</button>
+            <button class="tab" onclick="quickCmd('Czy wykryto próby phishingu lub skanowania portów?')">Zagrożenia zewnętrzne</button>
+            <button class="tab" onclick="quickCmd('Zablokuj nieznane urządzenie 192.168.1.47')">Blokuj urządzenie</button>
+            <button class="tab" onclick="quickCmd('Raport bezpieczeństwa za ostatnie 24h')">Raport 24h</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SETUP PAGE -->
+      <div class="page" id="page-setup">
+        <div class="section-title">INSTALACJA LOKALNEGO AGENTA PYTHON</div>
+        <div class="privacy-note">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span>Pełny agent Python działa wyłącznie lokalnie w Twojej sieci. Żadne dane nie opuszczają routera/komputera. Pobrany skrypt <code>netguard_agent.py</code> zawiera wszystkie moduły monitorowania.</span>
+        </div>
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel-header"><div class="panel-title">WYMAGANIA SYSTEMOWE</div></div>
+            <div class="panel-body">
+              <div style="font-family: var(--mono); font-size: 12px; line-height: 2; color: var(--text2);">
+                <div style="color: var(--accent2);">✓ Python 3.9+</div>
+                <div style="color: var(--accent2);">✓ Linux / macOS / Windows (WSL2)</div>
+                <div style="color: var(--accent2);">✓ Dostęp do sieci lokalnej (LAN)</div>
+                <div style="color: var(--accent2);">✓ Uprawnienia root/administrator</div>
+                <div style="color: var(--text2);">○ Opcjonalnie: Ollama + Llama3 (lokalny LLM)</div>
+                <div style="color: var(--text2);">○ Opcjonalnie: Home Assistant</div>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-header"><div class="panel-title">ARCHITEKTURA AGENTA</div></div>
+            <div class="panel-body">
+              <div style="font-family: var(--mono); font-size: 11px; line-height: 2; color: var(--text2);">
+                <div style="color: var(--accent);">netguard_agent.py</div>
+                <div>├── <span style="color: var(--text);">NetworkScanner</span> — skanowanie ARP</div>
+                <div>├── <span style="color: var(--text);">PacketAnalyzer</span> — analiza ruchu</div>
+                <div>├── <span style="color: var(--text);">ThreatDetector</span> — wykrywanie zagrożeń</div>
+                <div>├── <span style="color: var(--text);">AIAnalyst</span> — lokalny LLM (Ollama)</div>
+                <div>├── <span style="color: var(--text);">AlertManager</span> — powiadomienia</div>
+                <div>└── <span style="color: var(--text);">WebDashboard</span> — ten interfejs</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">SZYBKI START</div>
+          </div>
+          <div class="panel-body">
+            <div style="font-family: var(--mono); font-size: 12px; line-height: 2.2;">
+              <div style="color: var(--text3); font-size: 10px; margin-bottom: 4px;"># 1. Instalacja zależności</div>
+              <div style="background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; margin-bottom: 12px; color: var(--accent2);">
+                pip install scapy nmap-python psutil requests flask ollama<br>
+                sudo python3 netguard_agent.py --setup
+              </div>
+              <div style="color: var(--text3); font-size: 10px; margin-bottom: 4px;"># 2. Uruchomienie agenta z lokalnym LLM</div>
+              <div style="background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; margin-bottom: 12px; color: var(--accent2);">
+                ollama pull llama3.2<br>
+                sudo python3 netguard_agent.py --model llama3.2 --dashboard
+              </div>
+              <div style="color: var(--text3); font-size: 10px; margin-bottom: 4px;"># 3. Lub tryb bez LLM (reguły heurystyczne)</div>
+              <div style="background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; color: var(--accent2);">
+                sudo python3 netguard_agent.py --no-llm --alert-email <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="ed8c9f8289829d889f9d8188ad8a808c8481c38e8280">[email&#160;protected]</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /main -->
+  </div><!-- /content col -->
+</div><!-- /layout -->
+
+<script>
+// ============================================================
+// API — pobieranie danych z lokalnego agenta Flask
+// ============================================================
+const API = '';
+let devices = [];
+let alerts  = [];
+let agentOnline = false;
+
+const threats = [
+  { name: "Port Scanning",    level: 0, fill: "fill-red",  status: "BRAK", count: "0 prób",      active: false },
+  { name: "ARP Spoofing",     level: 0, fill: "fill-red",  status: "BRAK", count: "0 prób",      active: false },
+  { name: "DNS Tunneling",    level: 0, fill: "fill-warn", status: "BRAK", count: "0 queries",   active: false },
+  { name: "IoT / Tuya Anomalia", level: 0, fill: "fill-warn", status: "BRAK", count: "0 zdarzeń", active: false },
+  { name: "Phishing DNS",     level: 0, fill: "fill-blue", status: "BRAK", count: "0 domen",     active: false },
+  { name: "Tor / C2",         level: 0, fill: "fill-blue", status: "BRAK", count: "0 połączeń",  active: false },
+];
+
+const rules = [
+  { action: "block", desc: "Blokada połączeń Tor",            detail: "Ruch do węzłów Tor Exit",                    active: true },
+  { action: "block", desc: "Blokada skanowania portów",        detail: "SYN flood > 100 pakietów/s",                 active: true },
+  { action: "allow", desc: "Zezwól na NTP",                    detail: "UDP port 123 — synchronizacja czasu",         active: true },
+  { action: "block", desc: "Blokada nieautoryzowanych urządzeń",detail: "MAC spoza listy zaufanych → kwarantanna",   active: true },
+  { action: "allow", desc: "Zezwól na VPN (WireGuard)",        detail: "UDP port 51820",                             active: true },
+  { action: "block", desc: "Blokada telnet i FTP",             detail: "TCP port 21, 23 — niezaszyfrowane protokoły",active: true },
+];
+
+async function apiFetch(path) {
+  try {
+    const r = await fetch(API + path);
+    if (!r.ok) throw new Error(r.status);
+    return await r.json();
+  } catch(e) {
+    return null;
+  }
+}
+
+// Mapuj typ alertu z agenta na typ wizualny
+function mapSeverity(s) {
+  if (!s) return 'info';
+  s = s.toUpperCase();
+  if (s === 'CRITICAL') return 'danger';
+  if (s === 'HIGH')     return 'warn';
+  if (s === 'INFO')     return 'ok';
+  return 'info';
+}
+
+// Oblicz względny czas
+function relativeTime(iso) {
+  if (!iso) return '—';
+  const diff = Math.floor((Date.now() - new Date(iso)) / 1000);
+  if (diff < 60)   return `${diff}s temu`;
+  if (diff < 3600) return `${Math.floor(diff/60)} min temu`;
+  if (diff < 86400)return `${Math.floor(diff/3600)} godz. temu`;
+  return `${Math.floor(diff/86400)} dni temu`;
+}
+
+// Aktualizuj zagrożenia na podstawie alertów
+function rebuildThreats(alertList) {
+  const counts = { PORT_SCAN: 0, ARP_SPOOFING: 0, DNS_TUNNEL: 0,
+                   MALICIOUS_DNS: 0, TOR_CONNECTION: 0,
+                   IOT_LOCAL_SCAN: 0, IOT_HIGH_UPLOAD: 0, IOT_UNKNOWN_SERVER: 0 };
+  alertList.forEach(a => { if (a.type in counts) counts[a.type]++; });
+
+  threats[0].count  = `${counts.PORT_SCAN} prób`;
+  threats[0].level  = Math.min(counts.PORT_SCAN * 20, 100);
+  threats[0].active = counts.PORT_SCAN > 0;
+  threats[0].status = counts.PORT_SCAN > 0 ? 'AKTYWNE' : 'BRAK';
+
+  threats[1].count  = `${counts.ARP_SPOOFING} prób`;
+  threats[1].level  = Math.min(counts.ARP_SPOOFING * 40, 100);
+  threats[1].active = counts.ARP_SPOOFING > 0;
+  threats[1].status = counts.ARP_SPOOFING > 0 ? 'WYKRYTY' : 'BRAK';
+
+  threats[2].count  = `${counts.DNS_TUNNEL} zdarzeń`;
+  threats[2].level  = Math.min(counts.DNS_TUNNEL * 30, 100);
+  threats[2].active = counts.DNS_TUNNEL > 0;
+  threats[2].status = counts.DNS_TUNNEL > 0 ? 'PODEJRZANY' : 'BRAK';
+
+  threats[4].count  = `${counts.MALICIOUS_DNS} domen`;
+  threats[4].level  = Math.min(counts.MALICIOUS_DNS * 25, 100);
+  threats[4].active = counts.MALICIOUS_DNS > 0;
+  threats[4].status = counts.MALICIOUS_DNS > 0 ? 'WYKRYTY' : 'BRAK';
+
+  threats[5].count  = `${counts.TOR_CONNECTION} połączeń`;
+  threats[5].level  = Math.min(counts.TOR_CONNECTION * 30, 100);
+  threats[5].active = counts.TOR_CONNECTION > 0;
+  threats[5].status = counts.TOR_CONNECTION > 0 ? 'WYKRYTY' : 'BRAK';
+
+  // IoT threats
+  const iotTotal = counts.IOT_LOCAL_SCAN + counts.IOT_HIGH_UPLOAD + counts.IOT_UNKNOWN_SERVER;
+  if (threats[3]) {
+    threats[3].count  = `${iotTotal} zdarzeń`;
+    threats[3].level  = Math.min(iotTotal * 25, 100);
+    threats[3].active = iotTotal > 0;
+    threats[3].status = iotTotal > 0 ? 'WYKRYTY' : 'BRAK';
+  }
+}
+
+async function fetchAll() {
+  const [devData, alertData, statsData] = await Promise.all([
+    apiFetch('/api/devices'),
+    apiFetch('/api/alerts'),
+    apiFetch('/api/stats'),
+  ]);
+
+  agentOnline = !!(devData || alertData);
+  const statusEl = document.getElementById('overall-status');
+  const statusTxt = document.getElementById('status-text');
+
+  if (!agentOnline) {
+    statusEl.className = 'status-badge danger';
+    statusTxt.textContent = 'AGENT OFFLINE';
+    return;
+  }
+
+  // Urządzenia
+  if (devData) {
+    const newDevices = devData.map((d, i) => ({
+      id: i + 1,
+      name: d.hostname || d.vendor || `Urządzenie (${d.ip})`,
+      hostname: d.hostname || '',
+      ip: d.ip || '—',
+      mac: d.mac || '—',
+      vendor: d.vendor || 'Nieznany',
+      status: d.status || 'online',
+      tag: d.tag || 'new',
+      down: d.down || '—',
+      up: d.up || '—',
+      is_host: d.is_host || false,
+      lastSeen: relativeTime(d.last_seen),
+    }));
+    checkDeviceChanges(newDevices);
+    devices = newDevices;
+  }
+
+  // Alerty z agenta
+  if (alertData) {
+    alerts = alertData.map((e, idx) => ({
+      id: idx,
+      type: mapSeverity(e.severity),
+      title: e.type ? e.type.replace(/_/g, ' ') : 'Zdarzenie',
+      detail: e.description || '',
+      time: relativeTime(e.timestamp),
+      rawType: e.type || '',
+    }));
+    rebuildThreats(alertData);
+  }
+
+  // Statystyki
+  if (statsData) {
+    document.getElementById('stat-online').textContent  = statsData.online  ?? '—';
+    document.getElementById('stat-new').textContent     = statsData.new_devices ?? '—';
+    document.getElementById('stat-alerts').textContent  = statsData.active_alerts ?? '—';
+    document.getElementById('stat-blocked').textContent = statsData.total_events ?? alerts.length;
+    document.getElementById('new-devices-badge').textContent = statsData.new_devices ?? '0';
+    document.getElementById('alerts-badge').textContent = statsData.active_alerts ?? '0';
+
+    const hasAlerts = (statsData.active_alerts || 0) > 0;
+    statusEl.className = hasAlerts ? 'status-badge warn' : 'status-badge ok';
+    statusTxt.textContent = hasAlerts ? 'WYKRYTO ALERTY' : 'SIEĆ CHRONIONA';
+  }
+
+  // Odśwież widoczną stronę
+  const active = document.querySelector('.page.active');
+  if (active) {
+    const name = active.id.replace('page-', '');
+    if (name === 'overview') initOverview();
+    if (name === 'devices')  initDevices();
+    if (name === 'alerts')   initAlerts();
+    if (name === 'threats')  initThreats();
+  }
+}
+
+// Chat z prawdziwym API agenta
+async function getAIResponse(query) {
+  if (!agentOnline) {
+    return '❌ Agent jest offline. Uruchom: sudo ~/netguard-env/bin/python netguard_agent.py --dashboard';
+  }
+  try {
+    const r = await fetch(API + '/api/chat', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({message: query})
+    });
+    const data = await r.json();
+    return data.response || '(brak odpowiedzi)';
+  } catch(e) {
+    return `❌ Błąd połączenia z agentem: ${e.message}`;
+  }
+}
+
+// ============================================================
+// RENDER FUNCTIONS
+// ============================================================
+function renderDeviceItem(d) {
+  const dotClass = d.status === 'suspicious' ? 'suspicious' : (d.status === 'online' ? 'online' : 'offline');
+  const displayName = d.hostname && d.hostname !== d.ip ? d.hostname : (d.vendor || d.ip);
+  const isHost = d.is_host;
+  return `<div class="device-item" onclick="deviceDetail(${d.id})" style="${isHost ? 'border-left: 2px solid var(--accent2); padding-left: 10px;' : ''}">
+    <span class="device-dot ${dotClass}"></span>
+    <div class="device-info">
+      <div class="device-name">${displayName}${isHost ? ' <span style="color:var(--accent2);font-size:10px;font-family:var(--mono);">[TEN KOMPUTER]</span>' : ''}</div>
+      <div class="device-meta">${d.ip} · ${d.mac} · ${d.vendor}</div>
+    </div>
+    <div class="device-traffic">
+      <div class="down">↓ ${d.down || '—'}</div>
+      <div class="up">↑ ${d.up || '—'}</div>
+    </div>
+    <span class="device-tag tag-${d.tag}">${d.tag.toUpperCase()}</span>
+  </div>`;
+}
+
+function renderAlertItem(a, compact) {
+  const icons = { danger: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+    warn: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+    info: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+    ok: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,
+  };
+  return `<div class="alert-item" onclick="alertDetail(${a.id})" style="cursor:pointer;">
+    <div class="alert-icon ${a.type}">${icons[a.type]}</div>
+    <div class="alert-body">
+      <div class="alert-title">${a.title} — ${a.detail}</div>
+      <div class="alert-meta">${a.time}</div>
+    </div>
+    <button class="alert-dismiss" onclick="event.stopPropagation();dismissAlert(${a.id})">✕</button>
+  </div>`;
+}
+
+function renderThreatCard(t) {
+  return `<div class="threat-card ${t.active ? 'active-threat' : ''}">
+    <div class="threat-name">${t.name}</div>
+    <div class="threat-bar"><div class="threat-fill ${t.fill}" style="width: ${t.level}%"></div></div>
+    <div class="threat-stats">${t.status} · ${t.count}</div>
+  </div>`;
+}
+
+function initOverview() {
+  document.getElementById('devices-preview').innerHTML = devices.slice(0, 5).map(renderDeviceItem).join('');
+  document.getElementById('alerts-preview').innerHTML = alerts.slice(0, 4).map(a => renderAlertItem(a, true)).join('');
+  document.getElementById('threat-overview').innerHTML = threats.map(renderThreatCard).join('');
+}
+
+// Aktywny filtr urządzeń
+let activeDeviceFilter = 'all';
+
+function initDevices() {
+  filterDevices(activeDeviceFilter, document.querySelector('.tabs .tab.active') || document.querySelector('.tabs .tab'));
+}
+
+function filterDevices(filter, btn) {
+  activeDeviceFilter = filter;
+  document.querySelectorAll('.tabs .tab').forEach(t => t.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+
+  let filtered;
+  if (filter === 'all')        filtered = devices;
+  else if (filter === 'online')     filtered = devices.filter(d => d.status === 'online');
+  else if (filter === 'new')        filtered = devices.filter(d => d.tag === 'new');
+  else if (filter === 'suspicious') filtered = devices.filter(d => d.status === 'suspicious');
+  else if (filter === 'blocked')    filtered = devices.filter(d => d.tag === 'blocked');
+  else filtered = devices;
+
+  const el = document.getElementById('devices-full');
+  if (filtered.length === 0) {
+    const labels = { all: 'brak urządzeń', online: 'brak urządzeń online',
+                     new: 'brak nowych urządzeń', suspicious: 'brak podejrzanych urządzeń',
+                     blocked: 'brak zablokowanych urządzeń' };
+    el.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text2);font-family:var(--mono);font-size:12px;">✓ ${labels[filter] || 'brak wyników'}</div>`;
+  } else {
+    el.innerHTML = filtered.map(renderDeviceItem).join('');
+  }
+}
+
+// ============================================================
+// SYSTEM POWIADOMIEŃ
+// ============================================================
+let prevDeviceMACs = new Set();
+let notifQueue = [];
+let notifTimer = null;
+
+function showNotification(message, type = 'info', duration = 5000) {
+  // Utwórz kontener jeśli nie istnieje
+  let container = document.getElementById('notif-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'notif-container';
+    container.style.cssText = `
+      position: fixed; bottom: 24px; right: 24px;
+      display: flex; flex-direction: column; gap: 10px;
+      z-index: 9999; max-width: 340px;
+    `;
+    document.body.appendChild(container);
+  }
+
+  const colors = {
+    info:    { bg: 'rgba(0,212,255,0.12)',  border: 'rgba(0,212,255,0.4)',  icon: '📡', text: '#00d4ff' },
+    success: { bg: 'rgba(0,255,136,0.12)', border: 'rgba(0,255,136,0.4)', icon: '✓',  text: '#00ff88' },
+    warn:    { bg: 'rgba(255,170,0,0.12)', border: 'rgba(255,170,0,0.4)', icon: '⚠',  text: '#ffaa00' },
+    danger:  { bg: 'rgba(255,51,102,0.12)',border: 'rgba(255,51,102,0.4)',icon: '🚨', text: '#ff3366' },
+  };
+  const c = colors[type] || colors.info;
+
+  const notif = document.createElement('div');
+  notif.style.cssText = `
+    background: ${c.bg}; border: 1px solid ${c.border};
+    border-radius: 8px; padding: 12px 16px;
+    font-size: 13px; color: var(--text);
+    display: flex; align-items: flex-start; gap: 10px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    animation: slideIn 0.3s ease;
+    cursor: pointer;
+  `;
+  notif.innerHTML = `
+    <span style="font-size:16px;flex-shrink:0;">${c.icon}</span>
+    <div style="flex:1;">
+      <div style="color:${c.text};font-family:var(--mono);font-size:11px;font-weight:600;margin-bottom:3px;">NETGUARD</div>
+      <div>${message}</div>
+    </div>
+    <span style="color:var(--text2);font-size:16px;cursor:pointer;flex-shrink:0;" onclick="this.parentElement.remove()">✕</span>
+  `;
+  notif.onclick = (e) => { if (e.target.tagName !== 'SPAN') notif.remove(); };
+
+  // Dodaj animację CSS jeśli nie ma
+  if (!document.getElementById('notif-style')) {
+    const style = document.createElement('style');
+    style.id = 'notif-style';
+    style.textContent = `
+      @keyframes slideIn { from { opacity:0; transform: translateX(20px); } to { opacity:1; transform: translateX(0); } }
+      @keyframes slideOut { from { opacity:1; transform: translateX(0); } to { opacity:0; transform: translateX(20px); } }
+    `;
+    document.head.appendChild(style);
+  }
+
+  container.appendChild(notif);
+
+  // Auto-usuń po czasie
+  setTimeout(() => {
+    notif.style.animation = 'slideOut 0.3s ease forwards';
+    setTimeout(() => notif.remove(), 300);
+  }, duration);
+}
+
+function checkDeviceChanges(newDevices) {
+  const newMACs = new Set(newDevices.map(d => d.mac));
+
+  if (prevDeviceMACs.size > 0) {
+    // Nowe urządzenia
+    newDevices.forEach(d => {
+      if (!prevDeviceMACs.has(d.mac)) {
+        const name = d.hostname || d.vendor || d.ip;
+        const isTrusted = d.tag === 'trusted';
+        showNotification(
+          `<b>${name}</b> pojawiło się w sieci<br><small style="color:var(--text2)">${d.ip} · ${d.mac}</small>`,
+          isTrusted ? 'info' : 'warn',
+          6000
+        );
+      }
+    });
+
+    // Urządzenia które wyszły
+    prevDeviceMACs.forEach(mac => {
+      if (!newMACs.has(mac)) {
+        const old = devices.find(d => d.mac === mac);
+        const name = old ? (old.hostname || old.vendor || old.ip) : mac;
+        showNotification(
+          `<b>${name}</b> opuściło sieć<br><small style="color:var(--text2)">${mac}</small>`,
+          'info',
+          5000
+        );
+      }
+    });
+  }
+
+  prevDeviceMACs = newMACs;
+}
+
+function initAlerts() {
+  document.getElementById('alerts-full').innerHTML = alerts.map(a => renderAlertItem(a, false)).join('');
+}
+
+function initThreats() {
+  const active = threats.filter(t => t.active);
+  const inactive = threats.filter(t => !t.active);
+  document.getElementById('threats-active').innerHTML = active.map(renderThreatCard).join('') || '<div style="color: var(--text2); font-family: var(--mono); font-size: 12px; padding: 12px 0;">Brak aktywnych zagrożeń</div>';
+  document.getElementById('threats-history').innerHTML = `<div style="font-family: var(--mono); font-size: 11px; line-height: 2.2; color: var(--text2);">
+    <div>03:14 — <span style="color: var(--danger);">ARP Spoofing zablokowany</span></div>
+    <div>02:58 — <span style="color: var(--warn);">Port scan wykryty (192.168.1.47)</span></div>
+    <div>01:33 — <span style="color: var(--accent);">Nowe urządzenie (192.168.1.89)</span></div>
+    <div>00:12 — <span style="color: var(--accent2);">Baza zagrożeń zaktualizowana</span></div>
+    <div>Wczoraj 22:41 — <span style="color: var(--danger);">Blokada Tor exit node</span></div>
+  </div>`;
+  document.getElementById('threat-matrix').innerHTML = threats.map(renderThreatCard).join('');
+}
+
+function initFirewall() {
+  document.getElementById('firewall-rules').innerHTML = rules.map((r, i) => `
+    <div class="rule-item" id="rule-${i}">
+      <span class="rule-action ${r.action}">${r.action.toUpperCase()}</span>
+      <div class="rule-desc">${r.desc}<small>${r.detail}</small></div>
+      <button class="rule-toggle" onclick="toggleRule(${i})">${r.active ? 'WYŁĄCZ' : 'WŁĄCZ'}</button>
+    </div>
+  `).join('');
+}
+
+function toggleRule(i) {
+  rules[i].active = !rules[i].active;
+  initFirewall();
+}
+
+function addRule() {
+  const name = prompt("Nazwa nowej reguły:");
+  if (name) {
+    rules.push({ action: 'block', desc: name, detail: 'Reguła dodana ręcznie', active: true });
+    initFirewall();
+  }
+}
+
+function initTraffic() {
+  const devs = devices.filter(d => d.status === 'online' && d.down !== '—');
+  document.getElementById('top-download').innerHTML = devs.sort((a,b) => parseFloat(b.down) - parseFloat(a.down)).slice(0,5).map(d =>
+    `<div class="device-item"><div class="device-info"><div class="device-name">${d.name}</div><div class="device-meta">${d.ip}</div></div><div class="device-traffic"><div class="down">↓ ${d.down}</div></div></div>`
+  ).join('');
+  const ports = [
+    {p: 443, proto: "HTTPS", count: "2847 conn"}, {p: 80, proto: "HTTP", count: "312 conn"},
+    {p: 53, proto: "DNS", count: "1204 queries"}, {p: 22, proto: "SSH", count: "4 conn"},
+    {p: 8080, proto: "HTTP-alt", count: "88 conn"},
+  ];
+  document.getElementById('top-ports').innerHTML = ports.map(p =>
+    `<div class="rule-item"><span style="font-family: var(--mono); color: var(--accent); font-size: 13px; min-width: 50px;">${p.p}</span><div class="rule-desc">${p.proto}<small>${p.count}</small></div></div>`
+  ).join('');
+  setTimeout(() => drawChart('trafficChart2', 180), 50);
+}
+
+// ============================================================
+// CHAT
+// ============================================================
+let chatHistory = [];
+
+function initChat() {
+  const msgs = document.getElementById('chat-messages');
+  msgs.innerHTML = '';
+  addAIMessage("Cześć! Jestem NetGuard AI — Twoim lokalnym agentem bezpieczeństwa sieci. Monitoruję sieć i jestem gotowy odpowiedzieć na Twoje pytania.\n\n⚠️ **Wykryłem 3 alerty wymagające uwagi**, w tym aktywne skanowanie portów. Chcesz, żebym przeanalizował sytuację?");
+}
+
+function addAIMessage(text) {
+  const msgs = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = 'msg ai';
+  div.innerHTML = `<div class="msg-avatar ai">AI</div><div><div class="msg-bubble">${text.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong style="color: var(--accent)">$1</strong>').replace(/`(.*?)`/g, '<code style="color: var(--accent2); background: var(--bg3); padding: 1px 5px; border-radius: 3px; font-family: var(--mono); font-size: 11px;">$1</code>')}</div><div class="msg-time">teraz</div></div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function addUserMessage(text) {
+  const msgs = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = 'msg user';
+  div.innerHTML = `<div class="msg-avatar user">TY</div><div><div class="msg-bubble">${text}</div><div class="msg-time">teraz</div></div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function addTyping() {
+  const msgs = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = 'msg ai'; div.id = 'typing-indicator';
+  div.innerHTML = `<div class="msg-avatar ai">AI</div><div class="msg-bubble"><div class="typing"><span></span><span></span><span></span></div></div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function removeTyping() {
+  const t = document.getElementById('typing-indicator');
+  if (t) t.remove();
+}
+
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  addUserMessage(text);
+  addTyping();
+  const response = await getAIResponse(text);
+  removeTyping();
+  addAIMessage(response);
+}
+
+function quickCmd(cmd) {
+  showPage('ai');
+  document.getElementById('chat-input').value = cmd;
+  setTimeout(sendChat, 100);
+}
+
+// ============================================================
+// CHARTS
+// ============================================================
+function drawChart(id, height) {
+  const canvas = document.getElementById(id);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.parentElement.offsetWidth;
+  canvas.height = height || 120;
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  const points = 60;
+  const downData = Array.from({length: points}, (_, i) => 80 + Math.sin(i/5)*30 + Math.random()*40);
+  const upData = Array.from({length: points}, (_, i) => 20 + Math.sin(i/8)*10 + Math.random()*15);
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(30,45,71,0.8)';
+  ctx.lineWidth = 1;
+  for (let y = 0; y <= 4; y++) {
+    ctx.beginPath(); ctx.moveTo(0, y * h/4); ctx.lineTo(w, y * h/4); ctx.stroke();
+  }
+
+  function drawLine(data, color, fillColor) {
+    const max = Math.max(...data);
+    const pts = data.map((v, i) => [i * w/(points-1), h - (v/max) * (h * 0.85) - h * 0.05]);
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) {
+      const xc = (pts[i-1][0] + pts[i][0]) / 2;
+      ctx.bezierCurveTo(xc, pts[i-1][1], xc, pts[i][1], pts[i][0], pts[i][1]);
+    }
+    ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke();
+    // Fill
+    ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath();
+    ctx.fillStyle = fillColor; ctx.fill();
+  }
+
+  drawLine(downData, '#00d4ff', 'rgba(0,212,255,0.08)');
+  drawLine(upData, '#00ff88', 'rgba(0,255,136,0.06)');
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if (n.getAttribute('onclick') && n.getAttribute('onclick').includes(name)) n.classList.add('active');
+  });
+  if (name === 'devices') initDevices();
+  if (name === 'alerts') initAlerts();
+  if (name === 'threats') initThreats();
+  if (name === 'firewall') initFirewall();
+  if (name === 'traffic') initTraffic();
+  if (name === 'ai') initChat();
+  if (name === 'overview') drawChart('trafficChart', 120);
+}
+
+function dismissAlert(id) {
+  const idx = alerts.findIndex(a => a.id === id);
+  if (idx > -1) alerts.splice(idx, 1);
+  initAlerts();
+  document.getElementById('alerts-badge').textContent = alerts.filter(a => a.type === 'danger' || a.type === 'warn').length;
+  document.getElementById('stat-alerts').textContent = alerts.filter(a => a.type === 'danger' || a.type === 'warn').length;
+}
+
+function deviceDetail(id) {
+  const d = devices.find(x => x.id === id);
+  if (d) alert(`Urządzenie: ${d.name}\nIP: ${d.ip}\nMAC: ${d.mac}\nProducent: ${d.vendor}\nStatus: ${d.status}\nZnacznie: ${d.tag}\nOstatni kontakt: ${d.lastSeen}`);
+}
+
+// ============================================================
+// CLOCK & LIVE UPDATES
+// ============================================================
+function updateClock() {
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString('pl-PL');
+}
+
+function simulateLiveData() {
+  if (document.getElementById('page-overview').classList.contains('active')) {
+    drawChart('trafficChart', 120);
+  }
+}
+
+// ============================================================
+// MODAL: URZĄDZENIE
+// ============================================================
+let currentDeviceMAC = null;
+
+const VENDOR_HINTS = {
+  'apple':      '🍎 Urządzenie Apple — prawdopodobnie iPhone, iPad lub MacBook. Sprawdź w ustawieniach WiFi telefonu.',
+  'samsung':    '📺 Urządzenie Samsung — może to telewizor, telefon lub tablet Galaxy.',
+  'huawei':     '📡 Urządzenie Huawei — często router lub telefon.',
+  'tp-link':    '🔌 TP-Link — zwykle router, switch lub wzmacniacz WiFi.',
+  'hon hai':    '🖨️ Foxconn/Hon Hai — producent komponentów dla wielu firm (Brother, Apple i inne).',
+  'brother':    '🖨️ Prawdopodobnie drukarka lub urządzenie wielofunkcyjne Brother.',
+  'interphone': '🔔 Urządzenie domofonu lub systemu interkomu. Domofony Tuya wysyłają dane do chmury w Chinach.',
+  'lg':         '📺 Urządzenie LG — prawdopodobnie telewizor lub soundbar.',
+  'shenzhen':   '📶 Adapter WiFi lub urządzenie IoT z Chin. Zidentyfikuj przed oznaczeniem jako zaufane.',
+  'default':    '❓ Nieznany producent. Sprawdź fizycznie jakie urządzenie ma ten IP — wejdź na http://[IP] w przeglądarce.',
+};
+
+function getVendorHint(vendor, mac) {
+  if (!vendor) return VENDOR_HINTS['default'];
+  const v = vendor.toLowerCase();
+  for (const [key, hint] of Object.entries(VENDOR_HINTS)) {
+    if (v.includes(key)) return hint;
+  }
+  if (mac) {
+    const firstByte = parseInt(mac.split(':')[0], 16);
+    if (firstByte & 0x02) return '📱 MAC adres jest losowy/prywatny — typowe dla telefonów iOS/Android. Wyłącz "Prywatny adres Wi-Fi" w ustawieniach WiFi telefonu.';
+  }
+  return VENDOR_HINTS['default'];
+}
+
+function deviceDetail(id) {
+  const d = devices.find(x => x.id === id);
+  if (!d) return;
+  currentDeviceMAC = d.mac;
+  document.getElementById('md-ip').textContent       = d.ip;
+  document.getElementById('md-mac').textContent      = d.mac;
+  document.getElementById('md-vendor').textContent   = d.vendor;
+  document.getElementById('md-status').textContent   = d.status === 'online' ? '🟢 Online' : '⚫ Offline';
+  document.getElementById('md-lastseen').textContent = d.lastSeen;
+  document.getElementById('md-tag').textContent      = d.tag === 'trusted' ? '✓ Zaufane' : '⚠ Nowe / Niezweryfikowane';
+  document.getElementById('md-name-input').value     = (d.hostname && d.hostname !== d.ip) ? d.hostname : '';
+  document.getElementById('md-name-input').placeholder = 'np. ' + (d.vendor || 'Urządzenie') + ' w salonie';
+  document.getElementById('md-hint-text').textContent = getVendorHint(d.vendor, d.mac);
+  const trustBtn = document.getElementById('md-trust-btn');
+  if (d.tag === 'trusted') {
+    trustBtn.textContent = '✓ Już zaufane';
+    trustBtn.disabled = true; trustBtn.style.opacity = '0.5';
+  } else {
+    trustBtn.textContent = '✓ OZNACZ JAKO ZAUFANE';
+    trustBtn.disabled = false; trustBtn.style.opacity = '1';
+  }
+  document.getElementById('device-modal-overlay').classList.add('open');
+}
+
+function closeDeviceModal(e) {
+  if (e && e.target !== document.getElementById('device-modal-overlay')) return;
+  document.getElementById('device-modal-overlay').classList.remove('open');
+  currentDeviceMAC = null;
+}
+
+async function saveDeviceName() {
+  const name = document.getElementById('md-name-input').value.trim();
+  if (!name) { alert('Wpisz nazwę urządzenia'); return; }
+  try {
+    await fetch(API + '/api/rename', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ mac: currentDeviceMAC, name })
+    });
+  } catch(e) {}
+  const d = devices.find(x => x.mac === currentDeviceMAC);
+  if (d) { d.hostname = name; d.name = name; }
+  closeDeviceModal();
+  await fetchAll();
+}
+
+async function trustDevice() {
+  if (!currentDeviceMAC) return;
+  try { await fetch(API + '/api/trust/' + currentDeviceMAC, { method: 'POST' }); } catch(e) {}
+  const d = devices.find(x => x.mac === currentDeviceMAC);
+  if (d) d.tag = 'trusted';
+  closeDeviceModal();
+  await fetchAll();
+}
+
+async function blockDevice() {
+  if (!currentDeviceMAC) return;
+  if (!confirm('Czy na pewno chcesz zablokować to urządzenie?')) return;
+  try { await fetch(API + '/api/block/' + currentDeviceMAC, { method: 'POST' }); } catch(e) {}
+  closeDeviceModal();
+  await fetchAll();
+}
+
+// ============================================================
+// MODAL: ALERT
+// ============================================================
+const THREAT_DESCRIPTIONS = {
+  'NEW_DEVICE':         { level: 'info',     desc: 'W sieci pojawiło się nieznane wcześniej urządzenie. Może to być nowy sprzęt domowy, gość który podłączył się do WiFi, lub w rzadkich przypadkach nieautoryzowany dostęp. Sprawdź listę urządzeń i oznacz je jako zaufane jeśli je rozpoznajesz.' },
+  'ARP_SPOOFING':       { level: 'critical', desc: 'Wykryto atak ARP Spoofing — urządzenie w sieci podszywa się pod inne (np. router). To jeden z najpoważniejszych ataków: pozwala przechwytywać cały ruch internetowy. Natychmiast zidentyfikuj i odłącz podejrzane urządzenie od sieci.' },
+  'DNS_TUNNEL':         { level: 'high',     desc: 'Urządzenie wysyła bardzo dużo zapytań DNS. Może to oznaczać złośliwe oprogramowanie ukrywające komunikację w zapytaniach DNS, lub fałszywy alarm przy dużym ruchu internetowym (router, Twój komputer). Sprawdź urządzenie źródłowe.' },
+  'PORT_SCAN':          { level: 'high',     desc: 'Urządzenie skanuje porty innych urządzeń w sieci — szuka słabych punktów. To typowy pierwszy krok ataku. Sprawdź które urządzenie generuje skan i czy jest to Twój świadomy ruch (np. narzędzie diagnostyczne).' },
+  'MALICIOUS_DNS':      { level: 'critical', desc: 'Urządzenie próbowało połączyć się z domeną powiązaną ze złośliwym oprogramowaniem lub phishingiem. Poważny sygnał infekcji. Sprawdź urządzenie źródłowe — zainstaluj antywirusa i zmień hasła.' },
+  'TOR_CONNECTION':     { level: 'high',     desc: 'Wykryto połączenie z węzłem sieci Tor. Tor jest legalny, ale używany też przez złośliwe oprogramowanie. Sprawdź czy ktoś świadomie używa Tor Browser, czy to nieoczekiwana aktywność.' },
+  'IOT_LOCAL_SCAN':     { level: 'critical', desc: 'Urządzenie IoT (kamera, domofon, żarówka) próbuje łączyć się z innymi urządzeniami w sieci lokalnej. To bardzo podejrzane — IoT powinno komunikować tylko z internetem. Może oznaczać że urządzenie zostało przejęte.' },
+  'IOT_HIGH_UPLOAD':    { level: 'high',     desc: 'Urządzenie IoT wysyła do internetu znacznie więcej danych niż normalnie. Może to oznaczać nieautoryzowane nagrywanie, wyciek danych lub że urządzenie jest częścią ataku DDoS.' },
+  'IOT_UNKNOWN_SERVER': { level: 'high',     desc: 'Urządzenie IoT łączy się z nieznanym serwerem spoza listy producenta. Może oznaczać przejęcie urządzenia przez hakerów lub złośliwą aktualizację firmware.' },
+  'DEVICE_BLOCKED':     { level: 'info',     desc: 'Urządzenie zostało zablokowane przez administratora sieci. Nie może wysyłać ani odbierać ruchu sieciowego dopóki blokada nie zostanie zdjęta.' },
+  'DEVICE_TRUSTED':     { level: 'info',     desc: 'Urządzenie zostało oznaczone jako zaufane. NetGuard nie będzie generował alertów przy jego pojawieniu się w sieci.' },
+  'DEVICE_RENAMED':     { level: 'info',     desc: 'Nazwa urządzenia została zmieniona przez administratora sieci.' },
+};
+
+function alertDetail(id) {
+  const a = alerts.find(x => x.id === id);
+  if (!a) return;
+  // Szukaj opisu po rawType (np. "NEW_DEVICE") lub po title (np. "NEW DEVICE")
+  const info = THREAT_DESCRIPTIONS[a.rawType] ||
+               THREAT_DESCRIPTIONS[a.title] ||
+               { level: 'info', desc: 'Zdarzenie zarejestrowane przez agenta NetGuard. Sprawdź szczegóły i oceń czy wymaga reakcji.' };
+  document.getElementById('am-type').textContent   = a.title;
+  document.getElementById('am-time').textContent   = a.time;
+  document.getElementById('am-detail').textContent = a.detail;
+  const descEl = document.getElementById('am-desc');
+  descEl.textContent = info.desc;
+  descEl.className = 'alert-threat-desc ' + (info.level === 'critical' ? 'critical' : info.level === 'info' ? 'info' : '');
+  const badge = document.getElementById('am-level-badge');
+  badge.textContent = { critical: 'KRYTYCZNY', high: 'WYSOKI', info: 'INFORMACJA' }[info.level] || 'WYSOKI';
+  badge.className = 'threat-level-badge ' + info.level;
+  document.getElementById('alert-modal-overlay').classList.add('open');
+}
+
+function closeAlertModal(e) {
+  if (e && e.target !== document.getElementById('alert-modal-overlay')) return;
+  document.getElementById('alert-modal-overlay').classList.remove('open');
+}
+
+// ============================================================
+// INIT
+// ============================================================
+window.addEventListener('load', async () => {
+  updateClock();
+  setInterval(updateClock, 1000);
+  await fetchAll();
+  setInterval(fetchAll, 30000);
+  showPage('overview');
+});
+</script>
+
+<div class="modal-overlay" id="device-modal-overlay" onclick="closeDeviceModal(event)">
+  <div class="modal" id="device-modal">
+    <div class="modal-header">
+      <div class="modal-title">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+        SZCZEGÓŁY URZĄDZENIA
+      </div>
+      <button class="modal-close" onclick="closeDeviceModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-row"><span class="modal-key">IP</span><span class="modal-val" id="md-ip">—</span></div>
+      <div class="modal-row"><span class="modal-key">MAC</span><span class="modal-val" id="md-mac">—</span></div>
+      <div class="modal-row"><span class="modal-key">Producent</span><span class="modal-val" id="md-vendor">—</span></div>
+      <div class="modal-row"><span class="modal-key">Status</span><span class="modal-val" id="md-status">—</span></div>
+      <div class="modal-row"><span class="modal-key">Ostatnio widziano</span><span class="modal-val" id="md-lastseen">—</span></div>
+      <div class="modal-row"><span class="modal-key">Tag</span><span class="modal-val" id="md-tag">—</span></div>
+
+      <div style="margin-top: 16px;">
+        <div style="font-family: var(--mono); font-size: 11px; color: var(--text2); margin-bottom: 6px; letter-spacing: 1px;">NAZWA URZĄDZENIA</div>
+        <input class="modal-input" id="md-name-input" type="text" placeholder="np. Laptop Marii, TV Salon, Drukarka..." />
+        <div class="modal-hint" id="md-hint">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span id="md-hint-text">Analizuję producenta urządzenia...</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-primary" onclick="saveDeviceName()">💾 ZAPISZ NAZWĘ</button>
+      <button class="btn-success" id="md-trust-btn" onclick="trustDevice()">✓ OZNACZ JAKO ZAUFANE</button>
+      <button class="btn-danger" id="md-block-btn" onclick="blockDevice()">⊘ ZABLOKUJ</button>
+      <button class="btn-secondary" onclick="closeDeviceModal()">Zamknij</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL: Szczegóły alertu ─────────────────────────────── -->
+<div class="modal-overlay" id="alert-modal-overlay" onclick="closeAlertModal(event)">
+  <div class="modal" id="alert-modal">
+    <div class="modal-header">
+      <div class="modal-title" id="am-title-bar">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        SZCZEGÓŁY ALERTU
+      </div>
+      <button class="modal-close" onclick="closeAlertModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-row"><span class="modal-key">Typ</span><span class="modal-val" id="am-type">—</span></div>
+      <div class="modal-row"><span class="modal-key">Czas</span><span class="modal-val" id="am-time">—</span></div>
+      <div class="modal-row"><span class="modal-key">Szczegóły</span><span class="modal-val" id="am-detail">—</span></div>
+      <div id="am-desc" class="alert-threat-desc">Ładowanie opisu...</div>
+      <div id="am-level-badge" class="threat-level-badge high">HIGH</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeAlertModal()">Zamknij</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
