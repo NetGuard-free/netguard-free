@@ -997,6 +997,7 @@
 // API — pobieranie danych z lokalnego agenta Flask
 // ============================================================
 const API = '';
+let SECURITY_TOKEN = '';
 let devices = [];
 let alerts  = [];
 let agentOnline = false;
@@ -1019,14 +1020,34 @@ const rules = [
   { action: "block", desc: "Blokada telnet i FTP",             detail: "TCP port 21, 23 — niezaszyfrowane protokoły",active: true },
 ];
 
+async function fetchToken() {
+  try {
+    const r = await fetch(API + '/api/token');
+    if (r.ok) { const d = await r.json(); SECURITY_TOKEN = d.token || ''; }
+  } catch(e) {}
+}
+
 async function apiFetch(path) {
   try {
     const r = await fetch(API + path);
     if (!r.ok) throw new Error(r.status);
     return await r.json();
-  } catch(e) {
-    return null;
-  }
+  } catch(e) { return null; }
+}
+
+async function apiPost(path, body = {}) {
+  try {
+    const r = await fetch(API + path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-NetGuard-Token': SECURITY_TOKEN },
+      body: JSON.stringify({ ...body, token: SECURITY_TOKEN }),
+    });
+    if (r.status === 403) {
+      showNotification('Brak autoryzacji — odśwież stronę', 'danger', 5000);
+      return null;
+    }
+    return await r.json();
+  } catch(e) { return null; }
 }
 
 // Mapuj typ alertu z agenta na typ wizualny
@@ -1638,12 +1659,7 @@ function closeDeviceModal(e) {
 async function saveDeviceName() {
   const name = document.getElementById('md-name-input').value.trim();
   if (!name) { alert('Wpisz nazwę urządzenia'); return; }
-  try {
-    await fetch(API + '/api/rename', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ mac: currentDeviceMAC, name })
-    });
-  } catch(e) {}
+  await apiPost('/api/rename', { mac: currentDeviceMAC, name });
   const d = devices.find(x => x.mac === currentDeviceMAC);
   if (d) { d.hostname = name; d.name = name; }
   closeDeviceModal();
@@ -1652,7 +1668,7 @@ async function saveDeviceName() {
 
 async function trustDevice() {
   if (!currentDeviceMAC) return;
-  try { await fetch(API + '/api/trust/' + currentDeviceMAC, { method: 'POST' }); } catch(e) {}
+  await apiPost('/api/trust/' + currentDeviceMAC);
   const d = devices.find(x => x.mac === currentDeviceMAC);
   if (d) d.tag = 'trusted';
   closeDeviceModal();
@@ -1662,7 +1678,7 @@ async function trustDevice() {
 async function blockDevice() {
   if (!currentDeviceMAC) return;
   if (!confirm('Czy na pewno chcesz zablokować to urządzenie?')) return;
-  try { await fetch(API + '/api/block/' + currentDeviceMAC, { method: 'POST' }); } catch(e) {}
+  await apiPost('/api/block/' + currentDeviceMAC);
   closeDeviceModal();
   await fetchAll();
 }
@@ -1715,8 +1731,10 @@ function closeAlertModal(e) {
 window.addEventListener('load', async () => {
   updateClock();
   setInterval(updateClock, 1000);
+  await fetchToken();
   await fetchAll();
   setInterval(fetchAll, 30000);
+  setInterval(fetchToken, 300000);
   showPage('overview');
 });
 </script>
