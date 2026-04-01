@@ -196,7 +196,31 @@ def save_config():
     except Exception as e:
         print(f"⚠️  Błąd zapisu config.json: {e}")
 
+def _get_or_create_token() -> str:
+    """Pobierz lub wygeneruj token bezpieczeństwa dashboardu."""
+    token_file = os.path.join(os.path.dirname(CONFIG_FILE), ".netguard_token")
+    if os.path.exists(token_file):
+        try:
+            with open(token_file) as f:
+                token = f.read().strip()
+            if len(token) == 32:
+                return token
+        except:
+            pass
+    # Wygeneruj nowy token
+    token = hashlib.sha256(os.urandom(32)).hexdigest()[:32]
+    try:
+        with open(token_file, "w") as f:
+            f.write(token)
+        os.chmod(token_file, 0o600)  # tylko właściciel może czytać
+    except:
+        pass
+    return token
+
 CONFIG = load_config()
+
+# Token bezpieczeństwa — generowany automatycznie, przechowywany lokalnie
+DASHBOARD_TOKEN = _get_or_create_token()
 
 # Znane złośliwe domeny (mini-lista — w pełnej wersji pobierana z blocklists)
 MALICIOUS_DOMAINS = {
@@ -1132,6 +1156,20 @@ def start_dashboard(scanner: 'NetworkScanner', analyzer: 'PacketAnalyzer',
     script_dir = _os.path.dirname(_os.path.abspath(__file__))
     app = Flask(__name__, static_folder=script_dir)
 
+    # ── Dekorator sprawdzający token bezpieczeństwa ───────────
+    from functools import wraps
+
+    def require_token(f):
+        @wraps(f)
+        def decorated(*args, **kwargs):
+            token = (request.headers.get("X-NetGuard-Token") or
+                     request.args.get("token") or
+                     (request.json or {}).get("token", "") if request.is_json else "")
+            if token != DASHBOARD_TOKEN:
+                return jsonify({"error": "Brak autoryzacji — nieprawidłowy token"}), 403
+            return f(*args, **kwargs)
+        return decorated
+
     @app.after_request
     def add_cors(response):
         response.headers['Access-Control-Allow-Origin'] = '*'
@@ -1179,6 +1217,7 @@ def start_dashboard(scanner: 'NetworkScanner', analyzer: 'PacketAnalyzer',
         return jsonify({"response": response})
 
     @app.route('/api/block/<mac>', methods=['POST'])
+    @require_token
     def api_block(mac):
         if mac not in CONFIG["blocked_macs"]:
             CONFIG["blocked_macs"].append(mac)
@@ -1192,6 +1231,7 @@ def start_dashboard(scanner: 'NetworkScanner', analyzer: 'PacketAnalyzer',
         return jsonify({"status": "blocked", "mac": mac})
 
     @app.route('/api/trust/<mac>', methods=['POST'])
+    @require_token
     def api_trust(mac):
         if mac not in CONFIG["trusted_macs"]:
             CONFIG["trusted_macs"].append(mac)
@@ -1200,6 +1240,7 @@ def start_dashboard(scanner: 'NetworkScanner', analyzer: 'PacketAnalyzer',
         return jsonify({"status": "trusted", "mac": mac})
 
     @app.route('/api/rename', methods=['POST'])
+    @require_token
     def api_rename():
         data = request.json or {}
         mac  = data.get("mac", "").lower().strip()
@@ -1220,6 +1261,7 @@ def start_dashboard(scanner: 'NetworkScanner', analyzer: 'PacketAnalyzer',
         return jsonify({"status": "ok", "mac": mac, "name": name})
 
     @app.route('/api/test-report', methods=['POST', 'GET'])
+    @require_token
     def api_test_report():
         try:
             import datetime as _dt
@@ -1244,6 +1286,13 @@ def start_dashboard(scanner: 'NetworkScanner', analyzer: 'PacketAnalyzer',
         except Exception as e:
             return jsonify({"status": "error", "message": str(e)}), 500
 
+    @app.route('/api/token')
+    def api_token():
+        """Zwraca token dla dashboardu — dostępny tylko z localhost."""
+        if request.remote_addr not in ('127.0.0.1', '::1', 'localhost'):
+            return jsonify({"error": "Dostęp tylko z localhost"}), 403
+        return jsonify({"token": DASHBOARD_TOKEN})
+
     @app.route('/favicon.ico')
     def favicon():
         return send_from_directory(script_dir, 'favicon.ico',
@@ -1259,6 +1308,7 @@ def start_dashboard(scanner: 'NetworkScanner', analyzer: 'PacketAnalyzer',
     import socket as _socket
     from werkzeug.serving import make_server
     cprint("OK", f"Dashboard dostępny: http://localhost:{port}")
+    cprint("OK", f"Token bezpieczeństwa: {DASHBOARD_TOKEN[:8]}...{DASHBOARD_TOKEN[-4:]} (pełny w .netguard_token)")
     srv = make_server('0.0.0.0', port, app)
     srv.socket.setsockopt(_socket.SOL_SOCKET, _socket.SO_REUSEADDR, 1)
     srv.serve_forever()
