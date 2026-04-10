@@ -1,0 +1,18 @@
+{
+  "network_range": "auto",
+  "interface": "auto",
+  "scan_interval": 60,
+  "packet_capture": true,
+  "llm_model": "llama3.2",
+  "alert_email": "",
+  "dashboard_port": 8767,
+  "max_dns_per_min": 300,
+  "max_connections_per_min": 200,
+  "port_scan_threshold": 10,
+  "log_file": "/var/log/netguard.log",
+  "db_file": "/var/lib/netguard/devices.json",
+  "admin_password_hash": "",
+  "iot_devices": {},
+  "router": {"sync_interval": 60},
+  "smtp": {"host": "smtp.gmail.com", "port": 587, "user": "", "password": ""}
+}

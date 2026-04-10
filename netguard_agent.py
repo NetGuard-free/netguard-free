@@ -18,6 +18,8 @@ WYMAGANIA:
 """
 
 import os, sys, json, time, socket, struct, hashlib, logging, threading
+from functools import wraps
+from functools import wraps
 import subprocess, ipaddress, re, datetime, signal
 from collections import defaultdict, deque
 from typing import Optional
@@ -84,13 +86,43 @@ CONFIG_DEFAULTS = {
     "port_scan_threshold": 10,
     "log_file": "/var/log/netguard.log",
     "db_file": "/var/lib/netguard/devices.json",
-    "trusted_macs": [],
-    "blocked_macs": [],
-    "device_names": {},
+    "admin_password_hash": "",   # SHA-256 hasła administratora
     "iot_devices": {},
     "router": {"sync_interval": 60},
     "smtp": {"host": "smtp.gmail.com", "port": 587, "user": "", "password": ""},
 }
+
+# Plik z danymi urządzeń — oddzielony od config.json
+DEVICES_FILE = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "netguard_devices.json"
+)
+
+def load_devices() -> dict:
+    """Wczytaj dane urządzeń z osobnego pliku."""
+    default = {"trusted_macs": [], "blocked_macs": [], "device_names": {}}
+    # Szukaj w katalogu agenta, potem w /var/lib/netguard
+    for path in [DEVICES_FILE, "/var/lib/netguard/netguard_devices.json"]:
+        if os.path.exists(path):
+            try:
+                with open(path) as f:
+                    data = json.load(f)
+                return {**default, **data}
+            except:
+                pass
+    return default
+
+def save_devices():
+    """Zapisz dane urządzeń do osobnego pliku."""
+    try:
+        data = {
+            "trusted_macs": CONFIG.get("trusted_macs", []),
+            "blocked_macs":  CONFIG.get("blocked_macs", []),
+            "device_names":  CONFIG.get("device_names", {}),
+        }
+        with open(DEVICES_FILE, "w") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        print(f"⚠️  Błąd zapisu netguard_devices.json: {e}")
 
 def _detect_network():
     """Auto-wykryj interfejs i zakres sieci."""
@@ -113,6 +145,9 @@ def _detect_network():
     except:
         pass
     return "eth0", "192.168.1.0/24"
+
+def _hash_password(password: str) -> str:
+    return hashlib.sha256(password.encode()).hexdigest()
 
 def _run_wizard():
     """Wizard pierwszego uruchomienia — zbiera podstawową konfigurację."""
@@ -146,12 +181,28 @@ def _run_wizard():
     ans = input("  Port dashboardu [8767]: ").strip()
     cfg["dashboard_port"] = int(ans) if ans.isdigit() else 8767
 
+    # Hasło administratora
+    print("\n  Ustaw hasło administratora dashboardu.")
+    print("  Tylko administrator może zatwierdzać i blokować urządzenia.\n")
+    import getpass
+    while True:
+        pwd = getpass.getpass("  Hasło administratora: ")
+        pwd2 = getpass.getpass("  Powtórz hasło: ")
+        if pwd == pwd2 and len(pwd) >= 4:
+            cfg["admin_password_hash"] = _hash_password(pwd)
+            print("  ✓ Hasło ustawione\n")
+            break
+        elif len(pwd) < 4:
+            print("  ✗ Hasło musi mieć co najmniej 4 znaki")
+        else:
+            print("  ✗ Hasła nie są identyczne")
+
     # Zapisz
     with open(CONFIG_FILE, "w") as f:
         json.dump(cfg, f, indent=2, ensure_ascii=False)
 
-    print(f"\n  ✓ Konfiguracja zapisana w {CONFIG_FILE}")
-    print("  ✓ Możesz ją edytować w dowolnym momencie\n")
+    print(f"  ✓ Konfiguracja zapisana w {CONFIG_FILE}")
+    print("  ✓ Dane urządzeń będą zapisywane w netguard_devices.json\n")
     return cfg
 
 def load_config() -> dict:
@@ -159,15 +210,12 @@ def load_config() -> dict:
     cfg = dict(CONFIG_DEFAULTS)
 
     if not os.path.exists(CONFIG_FILE):
-        # Pierwsze uruchomienie — wizard
         cfg = _run_wizard()
     else:
         try:
             with open(CONFIG_FILE) as f:
                 user_cfg = json.load(f)
-            # Scal z domyślnymi (user_cfg nadpisuje defaults)
             cfg.update(user_cfg)
-            # Scal zagnieżdżone słowniki
             for key in ("smtp", "router"):
                 if key in CONFIG_DEFAULTS:
                     merged = dict(CONFIG_DEFAULTS[key])
@@ -184,13 +232,19 @@ def load_config() -> dict:
         if cfg.get("network_range") == "auto":
             cfg["network_range"] = net
 
+    # Wczytaj dane urządzeń z osobnego pliku
+    devices_data = load_devices()
+    cfg["trusted_macs"] = devices_data.get("trusted_macs", [])
+    cfg["blocked_macs"]  = devices_data.get("blocked_macs", [])
+    cfg["device_names"]  = devices_data.get("device_names", {})
+
     return cfg
 
 def save_config():
-    """Zapisz aktualną konfigurację do pliku."""
+    """Zapisz konfigurację agenta (bez danych urządzeń)."""
     try:
-        saveable = {k: v for k, v in CONFIG.items()
-                    if k not in ("log_file", "db_file")}
+        exclude = ("log_file", "db_file", "trusted_macs", "blocked_macs", "device_names")
+        saveable = {k: v for k, v in CONFIG.items() if k not in exclude}
         with open(CONFIG_FILE, "w") as f:
             json.dump(saveable, f, indent=2, ensure_ascii=False)
     except Exception as e:
@@ -221,6 +275,23 @@ CONFIG = load_config()
 
 # Token bezpieczeństwa — generowany automatycznie, przechowywany lokalnie
 DASHBOARD_TOKEN = _get_or_create_token()
+
+# ══════════════════════════════════════════════════════════════
+# SYSTEM LICENCJI (FREE VERSION)
+# ══════════════════════════════════════════════════════════════
+
+# W darmowej wersji otwartego oprogramowania limit to 25 urządzeń i brak płatnych funkcji zdalnych.
+# Aby znieść limit i uzyskać dostęp do zdalnego dashboardu i aplikacji mobilnej,
+# zakup licencję NetGuard Home na stronie https://netguardhome.pl
+
+FREE_LIMITS = {
+    "max_devices": 25,
+    "history_days": 30,
+}
+
+# Plan aktywny przy starcie (Wymuszone zawsze na FREE w wersji otwartoźródłowej)
+LICENSE_PLAN = "free"
+IS_HOME = False
 
 # Znane złośliwe domeny (mini-lista — w pełnej wersji pobierana z blocklists)
 MALICIOUS_DOMAINS = {
@@ -389,6 +460,22 @@ class NetworkScanner:
             devices[host_mac]["hostname"] = CONFIG["device_names"].get(host_mac) or socket.gethostname()
 
         self.active_devices = devices
+
+        # Limit urządzeń dla planu Free
+        if not IS_HOME and len(devices) > FREE_LIMITS["max_devices"]:
+            # Zachowaj zaufane + własny komputer, obetnij resztę
+            trusted = {m: d for m, d in devices.items()
+                      if d.get("tag") == "trusted" or d.get("is_host")}
+            others  = {m: d for m, d in devices.items()
+                      if m not in trusted}
+            allowed = FREE_LIMITS["max_devices"] - len(trusted)
+            trimmed = dict(list(others.items())[:max(0, allowed)])
+            devices = {**trusted, **trimmed}
+            self.active_devices = devices
+            cprint("WARN",
+                f"Plan Free: pokazuję {FREE_LIMITS['max_devices']} z {len(devices)} urządzeń",
+                "Przejdź na Home aby monitorować bez limitu — netguardhome.pl")
+
         cprint("OK", f"Znaleziono {len(devices)} urządzeń w sieci")
         return devices
 
@@ -1156,19 +1243,59 @@ def start_dashboard(scanner: 'NetworkScanner', analyzer: 'PacketAnalyzer',
     script_dir = _os.path.dirname(_os.path.abspath(__file__))
     app = Flask(__name__, static_folder=script_dir)
 
-    # ── Dekorator sprawdzający token bezpieczeństwa ───────────
-    from functools import wraps
+    # Sesje admina: token_sesji -> czas_wygaśnięcia
+    _admin_sessions = {}
+    _SESSION_TTL = 1800  # 30 minut
+
+    def _is_admin_session(req) -> bool:
+        """Sprawdź czy request ma ważną sesję admina."""
+        sess = req.headers.get("X-Admin-Session") or (req.json or {}).get("admin_session", "") if req.is_json else ""
+        if not sess:
+            sess = req.args.get("admin_session", "")
+        now = time.time()
+        if sess in _admin_sessions and _admin_sessions[sess] > now:
+            _admin_sessions[sess] = now + _SESSION_TTL  # odnów sesję
+            return True
+        return False
 
     def require_token(f):
         @wraps(f)
         def decorated(*args, **kwargs):
+            # Sprawdź token bezpieczeństwa (anty-CSRF)
             token = (request.headers.get("X-NetGuard-Token") or
                      request.args.get("token") or
                      (request.json or {}).get("token", "") if request.is_json else "")
             if token != DASHBOARD_TOKEN:
                 return jsonify({"error": "Brak autoryzacji — nieprawidłowy token"}), 403
+            # Sprawdź sesję admina
+            if not _is_admin_session(request):
+                return jsonify({"error": "Wymagane logowanie administratora", "need_admin": True}), 401
             return f(*args, **kwargs)
         return decorated
+
+    @app.route('/api/admin/login', methods=['POST'])
+    def api_admin_login():
+        """Logowanie administratora — zwraca token sesji."""
+        data = request.json or {}
+        password = data.get("password", "")
+        stored_hash = CONFIG.get("admin_password_hash", "")
+        if not stored_hash:
+            return jsonify({"error": "Brak hasła admina — ustaw admin_password_hash w config.json"}), 500
+        if _hash_password(password) == stored_hash:
+            session_token = hashlib.sha256(os.urandom(32)).hexdigest()[:32]
+            _admin_sessions[session_token] = time.time() + _SESSION_TTL
+            cprint("OK", "Administrator zalogowany do dashboardu")
+            return jsonify({"status": "ok", "session": session_token, "ttl": _SESSION_TTL})
+        return jsonify({"error": "Nieprawidłowe hasło"}), 401
+
+    @app.route('/api/admin/check', methods=['GET'])
+    def api_admin_check():
+        """Sprawdź czy sesja admina jest aktywna."""
+        sess = request.args.get("session", "")
+        now = time.time()
+        if sess in _admin_sessions and _admin_sessions[sess] > now:
+            return jsonify({"admin": True, "ttl": int(_admin_sessions[sess] - now)})
+        return jsonify({"admin": False})
 
     @app.after_request
     def add_cors(response):
@@ -1221,6 +1348,7 @@ def start_dashboard(scanner: 'NetworkScanner', analyzer: 'PacketAnalyzer',
     def api_block(mac):
         if mac not in CONFIG["blocked_macs"]:
             CONFIG["blocked_macs"].append(mac)
+            save_devices()
             # Faktyczna blokada przez iptables
             device = db.get_device(mac)
             if device and device.get("ip"):
@@ -1235,7 +1363,7 @@ def start_dashboard(scanner: 'NetworkScanner', analyzer: 'PacketAnalyzer',
     def api_trust(mac):
         if mac not in CONFIG["trusted_macs"]:
             CONFIG["trusted_macs"].append(mac)
-            save_config()
+            save_devices()
             db.add_event("DEVICE_TRUSTED", "INFO", f"Urządzenie oznaczone jako zaufane: {mac}", {"mac": mac})
         return jsonify({"status": "trusted", "mac": mac})
 
@@ -1248,7 +1376,7 @@ def start_dashboard(scanner: 'NetworkScanner', analyzer: 'PacketAnalyzer',
         if not mac or not name:
             return jsonify({"error": "Brak mac lub name"}), 400
         CONFIG["device_names"][mac] = name
-        save_config()
+        save_devices()
         if mac in scanner.active_devices:
             scanner.active_devices[mac]["hostname"] = name
         dev = db.data.get("devices", {}).get(mac, {})
@@ -1298,6 +1426,17 @@ def start_dashboard(scanner: 'NetworkScanner', analyzer: 'PacketAnalyzer',
         return send_from_directory(script_dir, 'favicon.ico',
                                    mimetype='image/x-icon')
 
+    @app.route('/api/license')
+    def api_license():
+        """Informacja o aktualnym planie licencyjnym."""
+        return jsonify({
+            "plan": LICENSE_PLAN,
+            "is_home": IS_HOME,
+            "max_devices": None if IS_HOME else FREE_LIMITS["max_devices"],
+            "history_days": None if IS_HOME else FREE_LIMITS["history_days"],
+            "upgrade_url": "https://netguardhome.pl/#cennik",
+        })
+
     @app.route('/')
     def index():
         dashboard = _os.path.join(script_dir, 'network-agent-dashboard.html')
@@ -1345,6 +1484,11 @@ class NetGuardAgent:
         self.running = True
         iface = self._detect_interface()
         cprint("OK", f"NetGuard AI uruchomiony", f"Sieć: {CONFIG['network_range']} | Interfejs: {iface}")
+        if IS_HOME:
+            cprint("OK", "Licencja: NetGuard HOME ✓", "Wszystkie funkcje odblokowane")
+        else:
+            cprint("INFO", "Licencja: NetGuard FREE",
+                   f"Limit: {FREE_LIMITS['max_devices']} urządzeń | Uaktualnij: netguardhome.pl")
 
         # Uruchom przechwytywanie pakietów w tle
         if CONFIG["packet_capture"]:
