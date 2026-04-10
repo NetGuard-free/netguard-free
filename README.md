@@ -184,8 +184,7 @@ NetGuard został zaprojektowany z myślą o prywatności:
 
 ## Licencja
 
-MIT License — używaj, modyfikuj, dystrybuuj swobodnie.
-
+Niniejszy kod źródłowy jest udostępniany na licencji Business Source License 1.1, której treść znajduje się w załączonym pliku LICENSE
 ---
 
 ## Autor
