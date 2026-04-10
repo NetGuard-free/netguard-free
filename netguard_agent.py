@@ -2,8 +2,9 @@
 """
 ╔══════════════════════════════════════════════════════════════╗
 ║         NETGUARD AI — Lokalny Agent Sieci Domowej            ║
-║         Wersja: 1.0.0  |  Tryb: 100% lokalny                ║
-║         Autor: Twój agent prywatności                        ║
+║         Wersja: Free Edition (limit 25 urządzeń)             ║
+║         Licencja: Business Source License 1.1 (BSL)          ║
+║         Autor: Arkadiusz Dragun (NetGuardHome)               ║
 ╚══════════════════════════════════════════════════════════════╝
 
 URUCHOMIENIE:
