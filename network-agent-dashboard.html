@@ -651,6 +651,66 @@
   .threat-level-badge.critical { background: rgba(255,51,102,0.15); color: var(--danger); }
   .threat-level-badge.high     { background: rgba(255,170,0,0.15);  color: var(--warn); }
   .threat-level-badge.info     { background: rgba(0,212,255,0.1);   color: var(--accent); }
+
+  /* Ikony połączenia WiFi/Kabel */
+  .conn-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-family: var(--mono); font-size: 10px; font-weight: 600;
+    padding: 2px 7px; border-radius: 4px; letter-spacing: 0.5px;
+  }
+  .conn-wifi   { background: rgba(0,212,255,0.12); color: var(--accent); border: 1px solid rgba(0,212,255,0.25); }
+  .conn-wired  { background: rgba(0,200,100,0.12); color: var(--accent2); border: 1px solid rgba(0,200,100,0.25); }
+  .conn-unknown{ background: rgba(255,255,255,0.05); color: var(--text3); border: 1px solid var(--border); }
+
+  /* Zalecenia inline w modalu alertu */
+  .rec-inline-title {
+    font-family: var(--mono); font-size: 11px; font-weight: 700;
+    color: var(--warn); letter-spacing: 1px; margin: 16px 0 8px 0;
+    padding-top: 14px; border-top: 1px solid var(--border);
+  }
+
+  /* Modal zaleceń administratora */
+  .rec-modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7); z-index: 2000;
+    align-items: center; justify-content: center;
+  }
+  .rec-modal-overlay.open { display: flex; }
+  .rec-modal {
+    background: var(--bg2); border: 1px solid var(--danger);
+    border-radius: 12px; width: 100%; max-width: 520px;
+    box-shadow: 0 0 40px rgba(255,51,102,0.25);
+    animation: modalIn 0.2s ease;
+  }
+  .rec-modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px; border-bottom: 1px solid var(--border);
+    background: rgba(255,51,102,0.08); border-radius: 12px 12px 0 0;
+  }
+  .rec-modal-title {
+    font-family: var(--mono); font-size: 13px; font-weight: 700;
+    color: var(--danger); letter-spacing: 1px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .rec-steps {
+    list-style: none; margin: 12px 0 0 0; padding: 0;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .rec-steps li {
+    display: flex; gap: 10px; align-items: flex-start;
+    font-size: 13px; line-height: 1.6; color: var(--text);
+  }
+  .rec-step-num {
+    background: rgba(255,170,0,0.15); color: var(--warn);
+    border-radius: 50%; width: 22px; height: 22px; min-width: 22px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 11px; font-weight: 700; margin-top: 1px;
+  }
+  .rec-countdown {
+    font-family: var(--mono); font-size: 11px; color: var(--text3);
+    text-align: center; padding: 8px 0 0 0;
+  }
+  .rec-countdown span { color: var(--warn); font-weight: 700; }
 </style>
 </head>
 <body>
@@ -663,8 +723,8 @@
       </svg>
     </div>
     <div class="logo-text">
-      <h1>NETGUARD AI</h1>
-      <p>Agent Sieci Domowej — tryb lokalny</p>
+      <h1>NETGUARD AI <span style="font-size: 10px; background: rgba(0, 200, 240, 0.2); color: #00c8f0; padding: 3px 6px; border-radius: 4px; vertical-align: middle; margin-left: 10px;">FREE EDITION</span></h1>
+      <p>Agent Sieci Domowej — <a href="https://netguardhome.pl" target="_blank" style="color: var(--text3); border-bottom: 1px dotted var(--text3); text-decoration: none;">odblokuj limit urządzeń w NetGuard Home</a></p>
     </div>
   </div>
   <div class="header-status">
@@ -821,6 +881,8 @@
           <button class="tab" onclick="filterDevices('new', this)">Nowe</button>
           <button class="tab" onclick="filterDevices('suspicious', this)">Podejrzane</button>
           <button class="tab" onclick="filterDevices('blocked', this)">Zablokowane</button>
+          <button class="tab" onclick="filterDevices('wifi', this)">📶 WiFi</button>
+          <button class="tab" onclick="filterDevices('wired', this)">🔌 Kabel</button>
         </div>
         <div class="panel">
           <div class="panel-body" id="devices-full" style="padding: 0 18px;"></div>
@@ -998,6 +1060,7 @@
 // ============================================================
 const API = '';
 let SECURITY_TOKEN = '';
+let ADMIN_SESSION = sessionStorage.getItem('ng_admin_session') || '';
 let devices = [];
 let alerts  = [];
 let agentOnline = false;
@@ -1039,15 +1102,68 @@ async function apiPost(path, body = {}) {
   try {
     const r = await fetch(API + path, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-NetGuard-Token': SECURITY_TOKEN },
-      body: JSON.stringify({ ...body, token: SECURITY_TOKEN }),
+      headers: {
+        'Content-Type': 'application/json',
+        'X-NetGuard-Token': SECURITY_TOKEN,
+        'X-Admin-Session': ADMIN_SESSION,
+      },
+      body: JSON.stringify({ ...body, token: SECURITY_TOKEN, admin_session: ADMIN_SESSION }),
     });
+    if (r.status === 401) {
+      const d = await r.json();
+      if (d.need_admin) { showAdminLogin(path, body); return null; }
+    }
     if (r.status === 403) {
       showNotification('Brak autoryzacji — odśwież stronę', 'danger', 5000);
       return null;
     }
     return await r.json();
   } catch(e) { return null; }
+}
+
+// ── Admin login modal ─────────────────────────────────────
+let _pendingPath = null;
+let _pendingBody = null;
+
+function showAdminLogin(path, body) {
+  _pendingPath = path;
+  _pendingBody = body;
+  document.getElementById('admin-modal-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('admin-pwd-input').focus(), 100);
+}
+
+function closeAdminModal(e) {
+  if (e && e.target !== document.getElementById('admin-modal-overlay')) return;
+  document.getElementById('admin-modal-overlay').classList.remove('open');
+  document.getElementById('admin-pwd-input').value = '';
+  document.getElementById('admin-login-error').textContent = '';
+}
+
+async function submitAdminLogin() {
+  const pwd = document.getElementById('admin-pwd-input').value;
+  const errEl = document.getElementById('admin-login-error');
+  if (!pwd) { errEl.textContent = 'Wpisz hasło'; return; }
+  try {
+    const r = await fetch(API + '/api/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-NetGuard-Token': SECURITY_TOKEN },
+      body: JSON.stringify({ password: pwd, token: SECURITY_TOKEN }),
+    });
+    const d = await r.json();
+    if (r.ok && d.session) {
+      ADMIN_SESSION = d.session;
+      sessionStorage.setItem('ng_admin_session', ADMIN_SESSION);
+      document.getElementById('admin-modal-overlay').classList.remove('open');
+      document.getElementById('admin-pwd-input').value = '';
+      errEl.textContent = '';
+      showNotification('Zalogowano jako administrator', 'success', 3000);
+      // Ponów oczekującą akcję
+      if (_pendingPath) { await apiPost(_pendingPath, _pendingBody); _pendingPath = null; }
+    } else {
+      errEl.textContent = d.error || 'Nieprawidłowe hasło';
+      document.getElementById('admin-pwd-input').value = '';
+    }
+  } catch(e) { errEl.textContent = 'Błąd połączenia z agentem'; }
 }
 
 // Mapuj typ alertu z agenta na typ wizualny
@@ -1140,6 +1256,7 @@ async function fetchAll() {
       vendor: d.vendor || 'Nieznany',
       status: d.status || 'online',
       tag: d.tag || 'new',
+      connection: d.connection || 'unknown',
       down: d.down || '—',
       up: d.up || '—',
       is_host: d.is_host || false,
@@ -1208,6 +1325,12 @@ async function getAIResponse(query) {
 // ============================================================
 // RENDER FUNCTIONS
 // ============================================================
+function connBadge(conn) {
+  if (conn === 'wifi')    return '<span class="conn-badge conn-wifi"><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1" fill="currentColor"/></svg>WiFi</span>';
+  if (conn === 'wired')   return '<span class="conn-badge conn-wired"><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="2" width="6" height="6" rx="1"/><rect x="16" y="2" width="6" height="6" rx="1"/><rect x="9" y="16" width="6" height="6" rx="1"/><path d="M5 8v4h14V8"/><path d="M12 12v4"/></svg>Kabel</span>';
+  return '<span class="conn-badge conn-unknown">?</span>';
+}
+
 function renderDeviceItem(d) {
   const dotClass = d.status === 'suspicious' ? 'suspicious' : (d.status === 'online' ? 'online' : 'offline');
   const displayName = d.hostname && d.hostname !== d.ip ? d.hostname : (d.vendor || d.ip);
@@ -1222,6 +1345,7 @@ function renderDeviceItem(d) {
       <div class="down">↓ ${d.down || '—'}</div>
       <div class="up">↑ ${d.up || '—'}</div>
     </div>
+    ${connBadge(d.connection)}
     <span class="device-tag tag-${d.tag}">${d.tag.toUpperCase()}</span>
   </div>`;
 }
@@ -1274,13 +1398,16 @@ function filterDevices(filter, btn) {
   else if (filter === 'new')        filtered = devices.filter(d => d.tag === 'new');
   else if (filter === 'suspicious') filtered = devices.filter(d => d.status === 'suspicious');
   else if (filter === 'blocked')    filtered = devices.filter(d => d.tag === 'blocked');
+  else if (filter === 'wifi')       filtered = devices.filter(d => d.connection === 'wifi');
+  else if (filter === 'wired')      filtered = devices.filter(d => d.connection === 'wired');
   else filtered = devices;
 
   const el = document.getElementById('devices-full');
   if (filtered.length === 0) {
     const labels = { all: 'brak urządzeń', online: 'brak urządzeń online',
                      new: 'brak nowych urządzeń', suspicious: 'brak podejrzanych urządzeń',
-                     blocked: 'brak zablokowanych urządzeń' };
+                     blocked: 'brak zablokowanych urządzeń',
+                     wifi: 'brak urządzeń WiFi', wired: 'brak urządzeń na kablu' };
     el.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text2);font-family:var(--mono);font-size:12px;">✓ ${labels[filter] || 'brak wyników'}</div>`;
   } else {
     el.innerHTML = filtered.map(renderDeviceItem).join('');
@@ -1636,6 +1763,8 @@ function deviceDetail(id) {
   document.getElementById('md-status').textContent   = d.status === 'online' ? '🟢 Online' : '⚫ Offline';
   document.getElementById('md-lastseen').textContent = d.lastSeen;
   document.getElementById('md-tag').textContent      = d.tag === 'trusted' ? '✓ Zaufane' : '⚠ Nowe / Niezweryfikowane';
+  const connLabels = { wifi: '📶 WiFi', wired: '🔌 Kabel (LAN)', unknown: '? Nieznane' };
+  document.getElementById('md-connection').textContent = connLabels[d.connection] || '? Nieznane';
   document.getElementById('md-name-input').value     = (d.hostname && d.hostname !== d.ip) ? d.hostname : '';
   document.getElementById('md-name-input').placeholder = 'np. ' + (d.vendor || 'Urządzenie') + ' w salonie';
   document.getElementById('md-hint-text').textContent = getVendorHint(d.vendor, d.mac);
@@ -1701,10 +1830,137 @@ const THREAT_DESCRIPTIONS = {
   'DEVICE_RENAMED':     { level: 'info',     desc: 'Nazwa urządzenia została zmieniona przez administratora sieci.' },
 };
 
+// ── Zalecenia dla administratora ─────────────────────────────
+const THREAT_RECOMMENDATIONS = {
+  'PORT_SCAN': {
+    title: 'Wykryto skanowanie portów',
+    steps: [
+      'Sprawdź czy adres źródłowy jest zewnętrzny (internet) czy lokalny (192.168.x.x). Zewnętrzny skan to norma — lokalny oznacza zainfekowane urządzenie w sieci.',
+      'Jeśli IP jest zewnętrzne: zweryfikuj czy router nie ma otwartych portów (<b>Panel Huawei → Firewall</b>). Wyłącz UPnP jeśli włączony.',
+      'Jeśli IP jest lokalne: natychmiast zidentyfikuj urządzenie i odłącz je od sieci przez przycisk "Zablokuj" w dashboardzie.',
+      'Opcjonalnie zablokuj konkretne IP: <code>sudo iptables -I INPUT -s &lt;IP&gt; -j DROP</code>',
+    ]
+  },
+  'ARP_SPOOFING': {
+    title: 'Wykryto atak ARP Spoofing',
+    steps: [
+      '<b>Pilne:</b> Znajdź urządzenie z podejrzanym MAC-em na liście urządzeń i natychmiast je zablokuj przyciskiem "Zablokuj".',
+      'Fizycznie odłącz nieznane urządzenia od sieci (kable, WiFi).',
+      'Zmień hasło WiFi — jeśli atakujący był w sieci, mógł je znać.',
+      'Sprawdź wszystkie urządzenia domowe pod kątem infekcji (antywirus, factory reset).',
+    ]
+  },
+  'DNS_TUNNEL': {
+    title: 'Wykryto podejrzany ruch DNS',
+    steps: [
+      'Sprawdź które urządzenie generuje ruch — patrz "Szczegóły" alertu. Router i komputer mogą generować dużo DNS — to normalnie fałszywy alarm.',
+      'Jeśli źródłem jest inne urządzenie (IoT, telefon): odizoluj je od sieci i przeskanuj antywirusem.',
+      'Możesz tymczasowo podwyższyć próg DNS w config.json: <code>max_dns_per_min: 500</code>',
+    ]
+  },
+  'MALICIOUS_DNS': {
+    title: 'Połączenie ze złośliwą domeną',
+    steps: [
+      '<b>Pilne:</b> Zidentyfikuj urządzenie źródłowe i natychmiast je zablokuj przyciskiem "Zablokuj".',
+      'Urządzenie może być zainfekowane. Uruchom pełne skanowanie antywirusowe.',
+      'Zmień hasła do kont używanych na tym urządzeniu (email, bankowość, social media).',
+      'Rozważ factory reset urządzenia jeśli infekcja się potwierdzi.',
+    ]
+  },
+  'TOR_CONNECTION': {
+    title: 'Wykryto połączenie z siecią Tor',
+    steps: [
+      'Sprawdź czy ktoś świadomie używa Tor Browser — to legalne, ale warto wiedzieć.',
+      'Jeśli nikt nie używa Tor: urządzenie może być zainfekowane. Zidentyfikuj je i przeskanuj antywirusem.',
+      'Jeśli chcesz zablokować Tor w sieci: zablokuj urządzenie źródłowe w dashboardzie.',
+    ]
+  },
+  'IOT_LOCAL_SCAN': {
+    title: 'Urządzenie IoT skanuje sieć lokalną',
+    steps: [
+      '<b>Pilne:</b> Urządzenie IoT (kamera, domofon) nie powinno nigdy łączyć się z innymi urządzeniami w sieci. Zablokuj je natychmiast przyciskiem "Zablokuj".',
+      'Sprawdź czy dostępna jest aktualizacja firmware urządzenia — może zawierać łatkę bezpieczeństwa.',
+      'Rozważ umieszczenie urządzeń IoT w osobnej sieci gościnnej (Guest WiFi) odizolowanej od głównej sieci.',
+    ]
+  },
+  'IOT_HIGH_UPLOAD': {
+    title: 'Urządzenie IoT wysyła dużo danych',
+    steps: [
+      'Sprawdź czy to nie zaplanowana aktualizacja firmware — może być uzasadnione.',
+      'Jeśli upload jest nieoczekiwany: zablokuj urządzenie przyciskiem "Zablokuj" i sprawdź logi.',
+      'Skontaktuj się z producentem urządzenia jeśli aktywność jest niewyjaśniona.',
+    ]
+  },
+  'IOT_UNKNOWN_SERVER': {
+    title: 'Urządzenie IoT łączy się z nieznanym serwerem',
+    steps: [
+      'Sprawdź adres IP serwera — wyszukaj go przez <code>whois &lt;IP&gt;</code> aby poznać właściciela.',
+      'Jeśli serwer nie należy do producenta urządzenia: rozważ zablokowanie urządzenia.',
+      'Zaktualizuj firmware urządzenia — może zawierać poprawkę bezpieczeństwa.',
+    ]
+  },
+  'NEW_DEVICE': {
+    title: 'Nowe urządzenie w sieci',
+    steps: [
+      'Sprawdź czy rozpoznajesz to urządzenie na liście urządzeń (IP, producent, hostname).',
+      'Jeśli je rozpoznajesz: kliknij "Oznacz jako zaufane" aby wyciszyć przyszłe alerty.',
+      'Jeśli jest nieznane: kliknij "Zablokuj" aby uniemożliwić mu dostęp do sieci.',
+    ]
+  },
+};
+
+// Śledzenie już pokazanych zaleceń (klucz: rawType+timestamp)
+const _shownRecs = new Set();
+let _recTimer = null;
+let _recCountdown = 0;
+
+function showRecommendationModal(alert) {
+  const rec = THREAT_RECOMMENDATIONS[alert.rawType];
+  if (!rec) return;
+  const key = alert.rawType + '|' + alert.time;
+  if (_shownRecs.has(key)) return;
+  _shownRecs.add(key);
+
+  document.getElementById('rec-modal-type').textContent = alert.title;
+  document.getElementById('rec-modal-title-text').textContent = rec.title;
+  document.getElementById('rec-modal-steps').innerHTML = rec.steps
+    .map((s, i) => '<li><span class="rec-step-num">' + (i+1) + '</span><span>' + s + '</span></li>')
+    .join('');
+
+  document.getElementById('rec-modal-overlay').classList.add('open');
+  _startRecCountdown(60);
+}
+
+function _startRecCountdown(seconds) {
+  _recCountdown = seconds;
+  _updateRecCountdownDisplay();
+  clearInterval(_recTimer);
+  _recTimer = setInterval(function() {
+    _recCountdown--;
+    _updateRecCountdownDisplay();
+    if (_recCountdown <= 0) closeRecommendationModal();
+  }, 1000);
+}
+
+function _updateRecCountdownDisplay() {
+  const el = document.getElementById('rec-countdown-val');
+  if (el) el.textContent = _recCountdown;
+}
+
+function _resetRecCountdown() {
+  if (document.getElementById('rec-modal-overlay').classList.contains('open')) {
+    _startRecCountdown(60);
+  }
+}
+
+function closeRecommendationModal() {
+  clearInterval(_recTimer);
+  document.getElementById('rec-modal-overlay').classList.remove('open');
+}
+
 function alertDetail(id) {
   const a = alerts.find(x => x.id === id);
   if (!a) return;
-  // Szukaj opisu po rawType (np. "NEW_DEVICE") lub po title (np. "NEW DEVICE")
   const info = THREAT_DESCRIPTIONS[a.rawType] ||
                THREAT_DESCRIPTIONS[a.title] ||
                { level: 'info', desc: 'Zdarzenie zarejestrowane przez agenta NetGuard. Sprawdź szczegóły i oceń czy wymaga reakcji.' };
@@ -1717,6 +1973,19 @@ function alertDetail(id) {
   const badge = document.getElementById('am-level-badge');
   badge.textContent = { critical: 'KRYTYCZNY', high: 'WYSOKI', info: 'INFORMACJA' }[info.level] || 'WYSOKI';
   badge.className = 'threat-level-badge ' + info.level;
+  // Zalecenia administratora
+  const rec = THREAT_RECOMMENDATIONS[a.rawType];
+  const recEl = document.getElementById('am-recommendations');
+  if (rec && rec.steps.length) {
+    recEl.innerHTML =
+      '<div class="rec-inline-title">ZALECENIA DLA ADMINISTRATORA</div>' +
+      '<ul class="rec-steps">' +
+      rec.steps.map((s, i) => '<li><span class="rec-step-num">' + (i+1) + '</span><span>' + s + '</span></li>').join('') +
+      '</ul>';
+    recEl.style.display = 'block';
+  } else {
+    recEl.style.display = 'none';
+  }
   document.getElementById('alert-modal-overlay').classList.add('open');
 }
 
@@ -1755,6 +2024,7 @@ window.addEventListener('load', async () => {
       <div class="modal-row"><span class="modal-key">Status</span><span class="modal-val" id="md-status">—</span></div>
       <div class="modal-row"><span class="modal-key">Ostatnio widziano</span><span class="modal-val" id="md-lastseen">—</span></div>
       <div class="modal-row"><span class="modal-key">Tag</span><span class="modal-val" id="md-tag">—</span></div>
+      <div class="modal-row"><span class="modal-key">Połączenie</span><span class="modal-val" id="md-connection">—</span></div>
 
       <div style="margin-top: 16px;">
         <div style="font-family: var(--mono); font-size: 11px; color: var(--text2); margin-bottom: 6px; letter-spacing: 1px;">NAZWA URZĄDZENIA</div>
@@ -1790,9 +2060,37 @@ window.addEventListener('load', async () => {
       <div class="modal-row"><span class="modal-key">Szczegóły</span><span class="modal-val" id="am-detail">—</span></div>
       <div id="am-desc" class="alert-threat-desc">Ładowanie opisu...</div>
       <div id="am-level-badge" class="threat-level-badge high">HIGH</div>
+      <div id="am-recommendations" style="display:none;"></div>
     </div>
     <div class="modal-actions">
       <button class="btn-secondary" onclick="closeAlertModal()">Zamknij</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL: Logowanie administratora ───────────────────── -->
+<div class="modal-overlay" id="admin-modal-overlay" onclick="closeAdminModal(event)">
+  <div class="modal" id="admin-modal" style="max-width:380px;">
+    <div class="modal-header">
+      <div class="modal-title">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        LOGOWANIE ADMINISTRATORA
+      </div>
+      <button class="modal-close" onclick="closeAdminModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--text2);margin-bottom:16px;">
+        Ta akcja wymaga uprawnień administratora.
+      </p>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--text2);margin-bottom:6px;letter-spacing:1px;">HASŁO ADMINISTRATORA</div>
+      <input class="modal-input" id="admin-pwd-input" type="password"
+             placeholder="Wpisz hasło..."
+             onkeydown="if(event.key==='Enter') submitAdminLogin()"/>
+      <div id="admin-login-error" style="color:var(--danger);font-size:12px;margin-top:8px;min-height:18px;"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-primary" onclick="submitAdminLogin()">🔓 ZALOGUJ</button>
+      <button class="btn-secondary" onclick="closeAdminModal()">Anuluj</button>
     </div>
   </div>
 </div>
