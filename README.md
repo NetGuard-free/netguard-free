@@ -24,10 +24,16 @@ curl -sSL https://raw.githubusercontent.com/NetGuard-free/netguard-free/main/ins
 ```
 
 ### Windows (PowerShell jako Administrator)
+
+> **Jak otworzyć PowerShell jako Administrator:**
+> Naciśnij klawisz **Windows**, wpisz `PowerShell`, kliknij prawym przyciskiem myszy na **Windows PowerShell** i wybierz **"Uruchom jako administrator"**. Potwierdź okno kontroli konta użytkownika (UAC).
+
 ```powershell
 Set-ExecutionPolicy Bypass -Scope Process -Force
 irm https://raw.githubusercontent.com/NetGuard-free/netguard-free/main/install.ps1 | iex
 ```
+
+Instalator automatycznie pobierze i skonfiguruje wszystkie wymagane składniki (Python, Npcap, biblioteki). Na końcu poprosi o ustawienie hasła do panelu admina.
 
 ### Docker
 ```bash
@@ -109,6 +115,32 @@ Możesz edytować `config.json` bezpośrednio:
 ```
 
 > ⚠️ `config.json` zawiera dane osobowe — nie wgrywaj go na GitHub. Plik jest chroniony przez `.gitignore`.
+
+---
+
+## Rozwiązywanie problemów — Windows
+
+### Przeglądarka pokazuje "Serwer odrzucił połączenie"
+
+Oznacza to że agent NetGuard nie działa. Przyczyną jest najczęściej brak pliku `config.json`.
+
+**Sprawdź czy plik istnieje:**
+Otwórz Eksplorator plików i przejdź do `C:\Users\TwojaNazwa\netguard\` — czy jest tam plik `config.json`?
+
+**Jeśli NIE ma `config.json`** — uruchom instalator ponownie (jako Administrator):
+```powershell
+Set-ExecutionPolicy Bypass -Scope Process -Force
+irm https://raw.githubusercontent.com/NetGuard-free/netguard-free/main/install.ps1 | iex
+```
+Instalator wykryje istniejącą instalację, pominie pobieranie plików i skonfiguruje brakujący `config.json`.
+
+**Jeśli `config.json` istnieje** — sprawdź czy agent jest uruchomiony:
+1. Przejdź do `C:\Users\TwojaNazwa\netguard\`
+2. Kliknij dwukrotnie `start-admin.bat`
+3. Sprawdź czy w oknie konsoli nie ma błędów
+4. Otwórz `http://localhost:8767` w przeglądarce
+
+**Jeśli widzisz błąd o Npcap** — zainstaluj [Npcap](https://npcap.com/#download) ręcznie, zaznaczając opcję **"WinPcap API compatible mode"**.
 
 ---
 
