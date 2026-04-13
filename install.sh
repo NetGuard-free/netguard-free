@@ -1,7 +1,7 @@
 #!/bin/bash
 # ============================================================
 #  NetGuard AI — Instalator (Linux / macOS / Raspberry Pi)
-#  https://github.com/dragunarek/netguard
+#  https://github.com/NetGuard-free/netguard-free
 # ============================================================
 
 set -e
@@ -9,7 +9,7 @@ set -e
 NETGUARD_VERSION="1.0.0"
 NETGUARD_DIR="$HOME/netguard"
 VENV_DIR="$HOME/netguard-env"
-REPO_URL="https://raw.githubusercontent.com/dragunarek/netguard/main"
+REPO_URL="https://raw.githubusercontent.com/NetGuard-free/netguard-free/main"
 PYTHON_MIN="3.9"
 
 # Kolory
@@ -375,7 +375,7 @@ print_summary() {
         echo -e "  ${YELLOW}sudo systemctl status netguard${NC}"
         echo ""
     fi
-    echo -e "  ${CYAN}Dokumentacja:${NC} https://github.com/dragunarek/netguard"
+    echo -e "  ${CYAN}Dokumentacja:${NC} https://github.com/NetGuard-free/netguard-free"
     echo ""
 }
 
