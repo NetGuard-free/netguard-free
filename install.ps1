@@ -164,46 +164,68 @@ function Download-Files {
     }
 }
 
-# ── Wizard konfiguracji ───────────────────────────────────────
+# ── Wizard konfiguracji — tworzy config.json ─────────────────
 function Run-Wizard {
     Write-Step "Konfiguracja NetGuard..."
     Write-Host ""
 
-    # Wykryj interfejs sieciowy
-    $defaultIface = (Get-NetRoute -DestinationPrefix "0.0.0.0/0" | Sort-Object RouteMetric | Select-Object -First 1).InterfaceAlias
-    $defaultNet = "192.168.1.0/24"
+    # Wykryj interfejs i sieć przez PowerShell (działa na Windows)
+    $defaultIface = "auto"
+    $defaultNet   = "192.168.1.0/24"
     try {
-        $ip = (Get-NetIPAddress -InterfaceAlias $defaultIface -AddressFamily IPv4 | Select-Object -First 1).IPAddress
-        $prefix = (Get-NetIPAddress -InterfaceAlias $defaultIface -AddressFamily IPv4 | Select-Object -First 1).PrefixLength
-        # Uproszczone obliczenie sieci
-        $ipParts = $ip -split "\."
-        $defaultNet = "$($ipParts[0]).$($ipParts[1]).$($ipParts[2]).0/$prefix"
+        $route = Get-NetRoute -DestinationPrefix "0.0.0.0/0" | Sort-Object RouteMetric | Select-Object -First 1
+        $iface = $route.InterfaceAlias
+        $ipObj = Get-NetIPAddress -InterfaceAlias $iface -AddressFamily IPv4 | Select-Object -First 1
+        if ($ipObj) {
+            $ipParts    = $ipObj.IPAddress -split "\."
+            $defaultNet = "$($ipParts[0]).$($ipParts[1]).$($ipParts[2]).0/$($ipObj.PrefixLength)"
+        }
     } catch {}
 
-    Write-Host "  Wykryto interfejs: $defaultIface" -ForegroundColor Cyan
-    Write-Host "  Wykryto sieć:      $defaultNet" -ForegroundColor Cyan
+    Write-Host "  Wykryto sieć: $defaultNet" -ForegroundColor Cyan
     Write-Host ""
 
     $userEmail = Read-Host "  Podaj adres email do powiadomień (Enter aby pominąć)"
     Write-Host ""
 
-    # Zapisz config
-    @"
-NETGUARD_INTERFACE=$defaultIface
-NETGUARD_NETWORK=$defaultNet
-NETGUARD_EMAIL=$userEmail
-NETGUARD_PORT=8767
-NETGUARD_VENV=$VENV_DIR
-NETGUARD_DIR=$NETGUARD_DIR
-"@ | Set-Content "$NETGUARD_DIR\.netguard.conf"
+    # Hasło admina dashboardu — hash SHA-256 w PowerShell
+    Write-Host "  Ustaw hasło do panelu admina:" -ForegroundColor Cyan
+    do {
+        $pwd1 = Read-Host "  Hasło" -AsSecureString
+        $pwd2 = Read-Host "  Powtórz hasło" -AsSecureString
+        $plain1 = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($pwd1))
+        $plain2 = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($pwd2))
+        if ($plain1 -ne $plain2) { Write-Warn "Hasła nie są identyczne. Spróbuj ponownie." }
+    } while ($plain1 -ne $plain2)
 
-    Write-OK "Konfiguracja zapisana"
+    $sha256    = [System.Security.Cryptography.SHA256]::Create()
+    $pwdHash   = [BitConverter]::ToString($sha256.ComputeHash([Text.Encoding]::UTF8.GetBytes($plain1))).Replace("-","").ToLower()
 
-    return @{
-        Interface = $defaultIface
-        Network   = $defaultNet
-        Email     = $userEmail
+    # Utwórz config.json (format wymagany przez agenta)
+    $config = @{
+        network_range       = $defaultNet
+        interface           = "auto"
+        alert_email         = $userEmail
+        dashboard_port      = 8767
+        admin_password_hash = $pwdHash
+        smtp = @{
+            host     = "smtp.gmail.com"
+            port     = 587
+            user     = $userEmail
+            password = ""
+        }
     }
+    $config | ConvertTo-Json -Depth 5 | Set-Content "$NETGUARD_DIR\config.json" -Encoding UTF8
+
+    # Utwórz pusty netguard_devices.json
+    if (-not (Test-Path "$NETGUARD_DIR\netguard_devices.json")) {
+        @{ trusted_macs = @(); blocked_macs = @(); device_names = @{} } `
+            | ConvertTo-Json | Set-Content "$NETGUARD_DIR\netguard_devices.json" -Encoding UTF8
+    }
+
+    Write-OK "Konfiguracja zapisana (config.json)"
+
+    return @{ Network = $defaultNet; Email = $userEmail }
 }
 
 # ── Utwórz skrypt startowy ────────────────────────────────────
