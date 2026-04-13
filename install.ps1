@@ -9,7 +9,7 @@ $NETGUARD_VERSION = "1.0.0"
 $NETGUARD_DIR = "$env:USERPROFILE\netguard"
 $VENV_DIR = "$env:USERPROFILE\netguard-env"
 $PYTHON_MIN = "3.9"
-$REPO_URL = "https://raw.githubusercontent.com/dragunarek/netguard/main"
+$REPO_URL = "https://raw.githubusercontent.com/NetGuard-free/netguard-free/main"
 
 # Kolory
 function Write-OK    { param($msg) Write-Host "  [OK] $msg" -ForegroundColor Green }
@@ -99,6 +99,35 @@ function Setup-Venv {
     # Aktualizuj pip
     & "$VENV_DIR\Scripts\python.exe" -m pip install --upgrade pip --quiet
     Write-OK "pip zaktualizowany"
+}
+
+# ── Zainstaluj Npcap (wymagany przez Scapy do skanowania ARP) ─
+function Install-Npcap {
+    Write-Step "Sprawdzanie Npcap..."
+
+    # Sprawdź czy już zainstalowany
+    $installed = Get-ItemProperty "HKLM:\SOFTWARE\WOW6432Node\Npcap" -ErrorAction SilentlyContinue
+    if ($installed) {
+        Write-OK "Npcap już zainstalowany"
+        return
+    }
+
+    Write-Info "Pobieranie Npcap (wymagany do skanowania sieci ARP)..."
+
+    $npcapUrl      = "https://npcap.com/dist/npcap-1.82.exe"
+    $npcapInstaller = "$env:TEMP\npcap-installer.exe"
+
+    try {
+        Invoke-WebRequest -Uri $npcapUrl -OutFile $npcapInstaller -UseBasicParsing
+        # /S = cicha instalacja, /winpcap_mode=yes = tryb WinPcap (wymagany przez Scapy)
+        Start-Process -FilePath $npcapInstaller -ArgumentList "/S /winpcap_mode=yes" -Wait
+        Remove-Item $npcapInstaller -Force -ErrorAction SilentlyContinue
+        Write-OK "Npcap zainstalowany (tryb WinPcap)"
+    } catch {
+        Write-Warn "Nie mogę zainstalować Npcap automatycznie."
+        Write-Warn "Pobierz ręcznie: https://npcap.com/#download"
+        Write-Warn "Zaznacz 'WinPcap API compatible mode' podczas instalacji!"
+    }
 }
 
 # ── Zainstaluj zależności Python ──────────────────────────────
@@ -264,17 +293,14 @@ function Print-Summary {
     Write-Host "  Dashboard (po uruchomieniu):" -ForegroundColor Cyan
     Write-Host "  http://localhost:8767" -ForegroundColor Yellow
     Write-Host ""
-    Write-Host "  WAŻNE dla Windows:" -ForegroundColor Cyan
-    Write-Host "  Skanowanie ARP wymaga Npcap: https://npcap.com/#download" -ForegroundColor Yellow
-    Write-Host "  (darmowy, instaluj z opcją 'WinPcap API compatible mode')" -ForegroundColor Yellow
-    Write-Host ""
-    Write-Host "  Dokumentacja: https://github.com/dragunarek/netguard" -ForegroundColor Cyan
+    Write-Host "  Dokumentacja: https://github.com/NetGuard-free/netguard-free" -ForegroundColor Cyan
     Write-Host ""
 }
 
 # ── GŁÓWNY FLOW ───────────────────────────────────────────────
 Write-Banner
 Check-Admin
+Install-Npcap
 $pythonCmd = Check-Python
 Setup-Venv -PythonCmd $pythonCmd
 Install-PythonDeps

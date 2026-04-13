@@ -2,7 +2,7 @@
 
 > Lokalny agent AI który monitoruje Twoją sieć domową, wykrywa zagrożenia i codziennie wysyła raport. Zero chmury. 100% prywatności.
 
-![NetGuard Dashboard](https://raw.githubusercontent.com/dragunarek/netguard/main/docs/Screenshot.png)
+![NetGuard Dashboard](https://raw.githubusercontent.com/NetGuard-free/netguard-free/main/docs/Screenshot.png)
 
 ---
 
@@ -20,20 +20,20 @@
 
 ### Linux / Raspberry Pi / macOS
 ```bash
-curl -sSL https://raw.githubusercontent.com/dragunarek/netguard/main/install.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/NetGuard-free/netguard-free/main/install.sh | sudo bash
 ```
 
 ### Windows (PowerShell jako Administrator)
 ```powershell
 Set-ExecutionPolicy Bypass -Scope Process -Force
-irm https://raw.githubusercontent.com/dragunarek/netguard/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/NetGuard-free/netguard-free/main/install.ps1 | iex
 ```
 
 ### Docker
 ```bash
 docker run -d --name netguard --network host --cap-add NET_ADMIN \
   -e NETGUARD_EMAIL=twoj@email.com \
-  dragunarek/netguard:latest
+  netguardfree/netguard-free:latest
 ```
 
 Po instalacji otwórz: **http://localhost:8767**
@@ -184,7 +184,7 @@ NetGuard został zaprojektowany z myślą o prywatności:
 
 ## Licencja
 
-Niniejszy kod źródłowy jest udostępniany na licencji Business Source License 1.1, której treść znajduje się w załączonym pliku LICENSE
+Niniejszy kod źródłowy jest udostępniany na licencji Business Source License 1.1, której treść znajduje się w załączonym pliku [LICENSE](LICENSE).
 ---
 
 ## Autor
