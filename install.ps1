@@ -247,14 +247,30 @@ cd /d "%USERPROFILE%\netguard"
 pause
 "@ | Set-Content "$NETGUARD_DIR\start.bat"
 
-    # start-admin.bat — uruchom jako administrator
+    # start-admin.bat — uruchom jako administrator (pause zawsze widoczne)
     @"
 @echo off
-powershell -Command "Start-Process cmd -ArgumentList '/c cd /d %USERPROFILE%\netguard && %USERPROFILE%\netguard-env\Scripts\python.exe netguard_agent.py --dashboard && pause' -Verb RunAs"
+powershell -Command "Start-Process cmd -ArgumentList '/c cd /d %USERPROFILE%\netguard ^& %USERPROFILE%\netguard-env\Scripts\python.exe netguard_agent.py --dashboard ^& pause' -Verb RunAs"
 "@ | Set-Content "$NETGUARD_DIR\start-admin.bat"
 
     Write-OK "start.bat — zwykłe uruchomienie"
     Write-OK "start-admin.bat — uruchomienie jako administrator (zalecane)"
+
+    # Otwórz port 8767 w Windows Firewall
+    try {
+        $ruleName = "NetGuard Dashboard (port 8767)"
+        $existing = Get-NetFirewallRule -DisplayName $ruleName -ErrorAction SilentlyContinue
+        if (-not $existing) {
+            New-NetFirewallRule -DisplayName $ruleName `
+                -Direction Inbound -Protocol TCP -LocalPort 8767 `
+                -Action Allow -Profile Any | Out-Null
+            Write-OK "Port 8767 otwarty w Windows Firewall"
+        } else {
+            Write-Info "Reguła firewall już istnieje"
+        }
+    } catch {
+        Write-Warn "Nie mogę dodać reguły firewall — uruchom ponownie jako Administrator"
+    }
 
     # Skrót na pulpicie
     try {
