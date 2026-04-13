@@ -114,17 +114,23 @@ function Install-Npcap {
 
     Write-Info "Pobieranie Npcap (wymagany do skanowania sieci ARP)..."
 
-    $npcapUrl      = "https://npcap.com/dist/npcap-1.82.exe"
+    $npcapUrl       = "https://npcap.com/dist/npcap-1.82.exe"
     $npcapInstaller = "$env:TEMP\npcap-installer.exe"
 
     try {
         Invoke-WebRequest -Uri $npcapUrl -OutFile $npcapInstaller -UseBasicParsing
-        # /S = cicha instalacja, /winpcap_mode=yes = tryb WinPcap (wymagany przez Scapy)
-        Start-Process -FilePath $npcapInstaller -ArgumentList "/S /winpcap_mode=yes" -Wait
+        Write-Host ""
+        Write-Host "  *** WAŻNE — przeczytaj przed kliknięciem Next! ***" -ForegroundColor Yellow
+        Write-Host "  W instalatorze Npcap zaznacz opcję:" -ForegroundColor Yellow
+        Write-Host "  [x] Install Npcap in WinPcap API-compatible Mode" -ForegroundColor Cyan
+        Write-Host "  Bez tej opcji skanowanie sieci nie będzie działać." -ForegroundColor Yellow
+        Write-Host ""
+        Read-Host "  Naciśnij Enter aby otworzyć instalator Npcap..."
+        Start-Process -FilePath $npcapInstaller -Wait
         Remove-Item $npcapInstaller -Force -ErrorAction SilentlyContinue
-        Write-OK "Npcap zainstalowany (tryb WinPcap)"
+        Write-OK "Npcap zainstalowany"
     } catch {
-        Write-Warn "Nie mogę zainstalować Npcap automatycznie."
+        Write-Warn "Nie mogę pobrać Npcap automatycznie."
         Write-Warn "Pobierz ręcznie: https://npcap.com/#download"
         Write-Warn "Zaznacz 'WinPcap API compatible mode' podczas instalacji!"
     }
