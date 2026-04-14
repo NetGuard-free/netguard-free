@@ -83,6 +83,10 @@ except ImportError:
 
 CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
 
+_AGENT_DIR = os.path.dirname(os.path.abspath(__file__))
+_DEFAULT_LOG = (os.path.join(_AGENT_DIR, "netguard.log")
+                if IS_WINDOWS else "/var/log/netguard.log")
+
 CONFIG_DEFAULTS = {
     "network_range": "auto",
     "interface": "auto",
@@ -94,8 +98,8 @@ CONFIG_DEFAULTS = {
     "max_dns_per_min": 300,
     "max_connections_per_min": 200,
     "port_scan_threshold": 10,
-    "log_file": "/var/log/netguard.log",
-    "db_file": "/var/lib/netguard/devices.json",
+    "log_file": _DEFAULT_LOG,
+    "db_file": os.path.join(_AGENT_DIR, "netguard_devices.json"),
     "admin_password_hash": "",   # SHA-256 hasła administratora
     "iot_devices": {},
     "router": {"sync_interval": 60},
@@ -136,6 +140,34 @@ def save_devices():
 
 def _detect_network():
     """Auto-wykryj interfejs i zakres sieci."""
+    if IS_WINDOWS:
+        # Na Windows używamy psutil (już zainstalowany) lub netsh
+        try:
+            if PSUTIL_AVAILABLE:
+                import psutil as _psutil
+                gws = _psutil.net_if_addrs()
+                stats = _psutil.net_if_stats()
+                for iface, addrs in gws.items():
+                    if not stats.get(iface, None) or not stats[iface].isup:
+                        continue
+                    if iface.lower() in ('lo', 'loopback', 'localhost'):
+                        continue
+                    for addr in addrs:
+                        if addr.family == 2:  # AF_INET (IPv4)
+                            ip = addr.address
+                            netmask = addr.netmask
+                            if ip.startswith('127.'):
+                                continue
+                            try:
+                                net = str(ipaddress.ip_network(
+                                    f"{ip}/{netmask}", strict=False))
+                                return iface, net
+                            except Exception:
+                                pass
+        except Exception:
+            pass
+        return "Ethernet", "192.168.1.0/24"
+    # Linux
     try:
         result = subprocess.run(
             ["ip", "route", "get", "8.8.8.8"],
@@ -143,7 +175,6 @@ def _detect_network():
         )
         m = re.search(r"dev (\S+)", result.stdout)
         iface = m.group(1) if m else "eth0"
-        # Znajdź zakres sieci dla interfejsu
         result2 = subprocess.run(
             ["ip", "-o", "-f", "inet", "addr", "show", iface],
             capture_output=True, text=True, timeout=5
@@ -324,15 +355,22 @@ IOT_TRAFFIC = defaultdict(lambda: defaultdict(int))
 # ══════════════════════════════════════════════════════════════
 # LOGGER
 # ══════════════════════════════════════════════════════════════
-os.makedirs(os.path.dirname(CONFIG["log_file"]), exist_ok=True)
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(message)s',
-    handlers=[
-        logging.FileHandler(CONFIG["log_file"]),
-        logging.StreamHandler(sys.stdout)
-    ]
-)
+def _setup_logging():
+    handlers = [logging.StreamHandler(sys.stdout)]
+    try:
+        log_dir = os.path.dirname(CONFIG["log_file"])
+        if log_dir:
+            os.makedirs(log_dir, exist_ok=True)
+        handlers.append(logging.FileHandler(CONFIG["log_file"], encoding="utf-8"))
+    except Exception:
+        pass  # na Windows bez uprawnień lub złej ścieżce — loguj tylko na konsolę
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s [%(levelname)s] %(message)s',
+        handlers=handlers
+    )
+
+_setup_logging()
 log = logging.getLogger("netguard")
 
 def cprint(level: str, msg: str, detail: str = ""):
@@ -1374,12 +1412,13 @@ def start_dashboard(scanner: 'NetworkScanner', analyzer: 'PacketAnalyzer',
         if mac not in CONFIG["blocked_macs"]:
             CONFIG["blocked_macs"].append(mac)
             save_devices()
-            # Faktyczna blokada przez iptables
-            device = db.get_device(mac)
-            if device and device.get("ip"):
-                ip = device["ip"]
-                os.system(f"iptables -I FORWARD -s {ip} -j DROP 2>/dev/null")
-                os.system(f"iptables -I FORWARD -d {ip} -j DROP 2>/dev/null")
+            # Faktyczna blokada przez iptables (tylko Linux)
+            if not IS_WINDOWS:
+                device = db.get_device(mac)
+                if device and device.get("ip"):
+                    ip = device["ip"]
+                    os.system(f"iptables -I FORWARD -s {ip} -j DROP 2>/dev/null")
+                    os.system(f"iptables -I FORWARD -d {ip} -j DROP 2>/dev/null")
             db.add_event("DEVICE_BLOCKED", "INFO", f"Urządzenie zablokowane: {mac}", {"mac": mac})
         return jsonify({"status": "blocked", "mac": mac})
 
@@ -1565,7 +1604,7 @@ class NetGuardAgent:
                             mac, info.get("hostname","?"),
                             info.get("ip",""), info.get("vendor",""))
 
-                    if mac in CONFIG["blocked_macs"]:
+                    if mac in CONFIG["blocked_macs"] and not IS_WINDOWS:
                         ip = info.get("ip")
                         if ip:
                             os.system(f"iptables -I FORWARD -s {ip} -j DROP 2>/dev/null")
