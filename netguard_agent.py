@@ -572,7 +572,10 @@ class NetworkScanner:
             return ""
 
     def _fallback_scan(self) -> dict:
-        """Skan przez nmap jeśli scapy niedostępne"""
+        """Skan zastępczy — arp -a na Windows, nmap na Linux."""
+        if IS_WINDOWS:
+            return self._scan_via_arp_command()
+        # Linux: nmap
         try:
             result = subprocess.run(
                 ['nmap', '-sn', '-T4', self.network, '--oG', '-'],
@@ -591,8 +594,55 @@ class NetworkScanner:
                                           "hostname": self._resolve_hostname(ip)}
             return devices
         except Exception as e:
-            cprint("WARN", f"Fallback scan failed: {e}")
+            cprint("WARN", f"Fallback scan (nmap) failed: {e}")
             return {}
+
+    def _scan_via_arp_command(self) -> dict:
+        """Skan sieci na Windows przez 'arp -a' + ping sweep."""
+        devices = {}
+        try:
+            # Ping sweep żeby wypełnić tablicę ARP
+            net = ipaddress.ip_network(self.network, strict=False)
+            # Ogranicz do /24 żeby nie trwało zbyt długo
+            hosts = list(net.hosts())[:254]
+            import concurrent.futures
+            def _ping(ip):
+                try:
+                    subprocess.run(
+                        ["ping", "-n", "1", "-w", "300", str(ip)],
+                        capture_output=True, timeout=2
+                    )
+                except Exception:
+                    pass
+            with concurrent.futures.ThreadPoolExecutor(max_workers=50) as ex:
+                ex.map(_ping, hosts)
+        except Exception:
+            pass
+
+        # Odczytaj tablicę ARP
+        try:
+            result = subprocess.run(
+                ["arp", "-a"], capture_output=True, text=True, timeout=10
+            )
+            for line in result.stdout.splitlines():
+                parts = line.split()
+                if len(parts) < 2:
+                    continue
+                ip  = parts[0]
+                mac = parts[1].replace("-", ":").lower()
+                if (re.match(r"^\d+\.\d+\.\d+\.\d+$", ip) and
+                        re.match(r"^([0-9a-f]{2}:){5}[0-9a-f]{2}$", mac) and
+                        mac != "ff:ff:ff:ff:ff:ff"):
+                    tag = "trusted" if mac in CONFIG["trusted_macs"] else "new"
+                    devices[mac] = {
+                        "ip": ip, "mac": mac, "status": "online",
+                        "vendor": self._get_vendor(mac),
+                        "hostname": CONFIG["device_names"].get(mac) or self._resolve_hostname(ip),
+                        "is_host": False, "tag": tag,
+                    }
+        except Exception as e:
+            cprint("WARN", f"Skan Windows (arp -a): {e}")
+        return devices
 
     def _get_vendor(self, mac: str) -> str:
         """Wyszukaj producenta na podstawie OUI (pierwsze 3 bajty MAC)"""
@@ -884,7 +934,8 @@ class RouterSync:
         self.scanner   = scanner
         self.last_sync = 0
         self.interval  = CONFIG.get("router", {}).get("sync_interval", 60)
-        cprint("OK", "ARP Sync aktywny — czyta /proc/net/arp")
+        src = "arp -a" if IS_WINDOWS else "/proc/net/arp"
+        cprint("OK", f"ARP Sync aktywny — czyta {src}")
 
     def sync(self) -> int:
         now = time.time()
@@ -918,6 +969,8 @@ class RouterSync:
         return new_count
 
     def _read_arp_table(self) -> dict:
+        if IS_WINDOWS:
+            return self._read_arp_table_windows()
         devices = {}
         try:
             with open("/proc/net/arp") as f:
@@ -936,6 +989,28 @@ class RouterSync:
                         devices[mac] = ip
         except Exception as e:
             cprint("WARN", f"ARP Sync: błąd odczytu: {e}")
+        return devices
+
+    def _read_arp_table_windows(self) -> dict:
+        """Czyta tablicę ARP na Windows przez 'arp -a'."""
+        devices = {}
+        try:
+            result = subprocess.run(
+                ["arp", "-a"], capture_output=True, text=True, timeout=10
+            )
+            for line in result.stdout.splitlines():
+                # format: "  192.168.1.1          aa-bb-cc-dd-ee-ff     dynamiczny"
+                parts = line.split()
+                if len(parts) < 2:
+                    continue
+                ip  = parts[0]
+                mac = parts[1].replace("-", ":").lower()
+                if (re.match(r"^\d+\.\d+\.\d+\.\d+$", ip) and
+                        re.match(r"^([0-9a-f]{2}:){5}[0-9a-f]{2}$", mac) and
+                        mac != "ff:ff:ff:ff:ff:ff"):
+                    devices[mac] = ip
+        except Exception as e:
+            cprint("WARN", f"ARP Sync (Windows): błąd: {e}")
         return devices
 
 class AIAnalyst:
@@ -1052,13 +1127,13 @@ class AlertManager:
         try:
             import zoneinfo
             tz = zoneinfo.ZoneInfo("Europe/Warsaw")
-        except ImportError:
+        except (ImportError, KeyError):
+            # KeyError = ZoneInfoNotFoundError na Windows (brak bazy IANA)
             try:
                 import pytz
                 tz = pytz.timezone("Europe/Warsaw")
-            except ImportError:
-                import datetime as _dt
-                # Fallback — UTC+1/+2 bez biblioteki
+            except (ImportError, Exception):
+                # Fallback — UTC+1 bez biblioteki
                 tz = datetime.timezone(datetime.timedelta(hours=1))
 
         now_local = datetime.datetime.now(tz)
