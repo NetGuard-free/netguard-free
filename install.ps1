@@ -35,19 +35,19 @@ function Write-Banner {
     Write-Host ""
 }
 
-# ── Sprawdź uprawnienia administratora ───────────────────────
+# -- Sprawdz uprawnienia administratora -----------------------
 function Check-Admin {
-    Write-Step "Sprawdzanie uprawnień..."
+    Write-Step "Sprawdzanie uprawnien..."
     $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
     if (-not $isAdmin) {
-        Write-Warn "Uruchom PowerShell jako Administrator dla pełnej funkcjonalności"
+        Write-Warn "Uruchom PowerShell jako Administrator dla pelnej funkcjonalnosci"
         Write-Warn "Kliknij prawym na PowerShell -> Uruchom jako administrator"
     } else {
         Write-OK "Uprawnienia administratora"
     }
 }
 
-# ── Sprawdź i zainstaluj Python ───────────────────────────────
+# -- Sprawdz i zainstaluj Python -------------------------------
 function Check-Python {
     Write-Step "Sprawdzanie Python..."
 
@@ -68,25 +68,25 @@ function Check-Python {
     }
 
     if (-not $pythonCmd) {
-        Write-Warn "Python 3.9+ nie znaleziony. Próbuję zainstalować przez winget..."
+        Write-Warn "Python 3.9+ nie znaleziony. Probuje zainstalowac przez winget..."
         try {
             winget install Python.Python.3.12 --silent --accept-package-agreements --accept-source-agreements
             Write-OK "Python zainstalowany przez winget"
-            # Odśwież PATH
+            # Odswiez PATH
             $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH","User")
             $pythonCmd = "python"
         } catch {
-            Write-Fail "Nie mogę zainstalować Python automatycznie.`n  Pobierz ręcznie: https://python.org/downloads`n  Zaznacz 'Add Python to PATH' podczas instalacji!"
+            Write-Fail "Nie moge zainstalowac Python automatycznie.`n  Pobierz recznie: https://python.org/downloads`n  Zaznacz 'Add Python to PATH' podczas instalacji!"
         }
     }
 
     return $pythonCmd
 }
 
-# ── Utwórz katalog i virtualenv ───────────────────────────────
+# -- Utworz katalog i virtualenv -------------------------------
 function Setup-Venv {
     param($PythonCmd)
-    Write-Step "Tworzenie środowiska Python..."
+    Write-Step "Tworzenie srodowiska Python..."
 
     New-Item -ItemType Directory -Force -Path $NETGUARD_DIR | Out-Null
     Write-OK "Katalog $NETGUARD_DIR"
@@ -95,7 +95,7 @@ function Setup-Venv {
         & $PythonCmd -m venv $VENV_DIR
         Write-OK "Virtualenv w $VENV_DIR"
     } else {
-        Write-Info "Virtualenv już istnieje — pomijam"
+        Write-Info "Virtualenv juz istnieje - pomijam"
     }
 
     # Aktualizuj pip
@@ -103,14 +103,14 @@ function Setup-Venv {
     Write-OK "pip zaktualizowany"
 }
 
-# ── Zainstaluj Npcap (wymagany przez Scapy do skanowania ARP) ─
+# -- Zainstaluj Npcap (wymagany przez Scapy do skanowania ARP) -
 function Install-Npcap {
     Write-Step "Sprawdzanie Npcap..."
 
-    # Sprawdź czy już zainstalowany
+    # Sprawdz czy juz zainstalowany
     $installed = Get-ItemProperty "HKLM:\SOFTWARE\WOW6432Node\Npcap" -ErrorAction SilentlyContinue
     if ($installed) {
-        Write-OK "Npcap już zainstalowany"
+        Write-OK "Npcap juz zainstalowany"
         return
     }
 
@@ -122,23 +122,23 @@ function Install-Npcap {
     try {
         Invoke-WebRequest -Uri $npcapUrl -OutFile $npcapInstaller -UseBasicParsing
         Write-Host ""
-        Write-Host "  *** WAŻNE — przeczytaj przed kliknięciem Next! ***" -ForegroundColor Yellow
-        Write-Host "  W instalatorze Npcap zaznacz opcję:" -ForegroundColor Yellow
+        Write-Host "  *** WAZNE - przeczytaj przed kliknieciem Next! ***" -ForegroundColor Yellow
+        Write-Host "  W instalatorze Npcap zaznacz opcje:" -ForegroundColor Yellow
         Write-Host "  [x] Install Npcap in WinPcap API-compatible Mode" -ForegroundColor Cyan
-        Write-Host "  Bez tej opcji skanowanie sieci nie będzie działać." -ForegroundColor Yellow
+        Write-Host "  Bez tej opcji skanowanie sieci nie bedzie dzialac." -ForegroundColor Yellow
         Write-Host ""
-        Read-Host "  Naciśnij Enter aby otworzyć instalator Npcap..."
+        Read-Host "  Nacisnij Enter aby otworzyc instalator Npcap..."
         Start-Process -FilePath $npcapInstaller -Wait
         Remove-Item $npcapInstaller -Force -ErrorAction SilentlyContinue
         Write-OK "Npcap zainstalowany"
     } catch {
-        Write-Warn "Nie mogę pobrać Npcap automatycznie."
-        Write-Warn "Pobierz ręcznie: https://npcap.com/#download"
+        Write-Warn "Nie moge pobrac Npcap automatycznie."
+        Write-Warn "Pobierz recznie: https://npcap.com/#download"
         Write-Warn "Zaznacz 'WinPcap API compatible mode' podczas instalacji!"
     }
 }
 
-# ── Zainstaluj zależności Python ──────────────────────────────
+# -- Zainstaluj zaleznosci Python ------------------------------
 function Install-PythonDeps {
     Write-Step "Instalowanie bibliotek Python..."
 
@@ -149,9 +149,9 @@ function Install-PythonDeps {
     }
 }
 
-# ── Pobierz pliki agenta ──────────────────────────────────────
+# -- Pobierz pliki agenta --------------------------------------
 function Download-Files {
-    Write-Step "Pobieranie plików NetGuard..."
+    Write-Step "Pobieranie plikow NetGuard..."
 
     $scriptDir  = if ($PSScriptRoot) { $PSScriptRoot } else { "" }
     $localAgent = if ($scriptDir) { Join-Path $scriptDir "netguard_agent.py" } else { "" }
@@ -168,17 +168,17 @@ function Download-Files {
             Invoke-WebRequest -Uri "$REPO_URL/network-agent-dashboard.html" -OutFile "$NETGUARD_DIR\network-agent-dashboard.html" -UseBasicParsing
             Write-OK "Pobrano z GitHub"
         } catch {
-            Write-Fail "Nie mogę pobrać plików: $_"
+            Write-Fail "Nie moge pobrac plikow: $_"
         }
     }
 }
 
-# ── Wizard konfiguracji — tworzy config.json ─────────────────
+# -- Wizard konfiguracji - tworzy config.json -----------------
 function Run-Wizard {
     Write-Step "Konfiguracja NetGuard..."
     Write-Host ""
 
-    # Wykryj interfejs i sieć przez PowerShell (działa na Windows)
+    # Wykryj interfejs i siec przez PowerShell (dziala na Windows)
     $defaultIface = "auto"
     $defaultNet   = "192.168.1.0/24"
     try {
@@ -191,26 +191,26 @@ function Run-Wizard {
         }
     } catch {}
 
-    Write-Host "  Wykryto sieć: $defaultNet" -ForegroundColor Cyan
+    Write-Host "  Wykryto siec: $defaultNet" -ForegroundColor Cyan
     Write-Host ""
 
-    $userEmail = Read-Host "  Podaj adres email do powiadomień (Enter aby pominąć)"
+    $userEmail = Read-Host "  Podaj adres email do powiadomien (Enter aby pominac)"
     Write-Host ""
 
-    # Hasło admina dashboardu — hash SHA-256 w PowerShell
-    Write-Host "  Ustaw hasło do panelu admina:" -ForegroundColor Cyan
+    # Haslo admina dashboardu - hash SHA-256 w PowerShell
+    Write-Host "  Ustaw haslo do panelu admina:" -ForegroundColor Cyan
     do {
-        $pwd1 = Read-Host "  Hasło" -AsSecureString
-        $pwd2 = Read-Host "  Powtórz hasło" -AsSecureString
+        $pwd1 = Read-Host "  Haslo" -AsSecureString
+        $pwd2 = Read-Host "  Powtorz haslo" -AsSecureString
         $plain1 = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($pwd1))
         $plain2 = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($pwd2))
-        if ($plain1 -ne $plain2) { Write-Warn "Hasła nie są identyczne. Spróbuj ponownie." }
+        if ($plain1 -ne $plain2) { Write-Warn "Hasla nie sa identyczne. Sprobuj ponownie." }
     } while ($plain1 -ne $plain2)
 
     $sha256    = [System.Security.Cryptography.SHA256]::Create()
     $pwdHash   = [BitConverter]::ToString($sha256.ComputeHash([Text.Encoding]::UTF8.GetBytes($plain1))).Replace("-","").ToLower()
 
-    # Utwórz config.json (format wymagany przez agenta)
+    # Utworz config.json (format wymagany przez agenta)
     $config = @{
         network_range       = $defaultNet
         interface           = "auto"
@@ -226,7 +226,7 @@ function Run-Wizard {
     }
     $config | ConvertTo-Json -Depth 5 | Set-Content "$NETGUARD_DIR\config.json" -Encoding UTF8
 
-    # Utwórz pusty netguard_devices.json
+    # Utworz pusty netguard_devices.json
     if (-not (Test-Path "$NETGUARD_DIR\netguard_devices.json")) {
         @{ trusted_macs = @(); blocked_macs = @(); device_names = @{} } `
             | ConvertTo-Json | Set-Content "$NETGUARD_DIR\netguard_devices.json" -Encoding UTF8
@@ -237,11 +237,11 @@ function Run-Wizard {
     return @{ Network = $defaultNet; Email = $userEmail }
 }
 
-# ── Utwórz skrypt startowy ────────────────────────────────────
+# -- Utworz skrypt startowy ------------------------------------
 function Create-Launcher {
-    Write-Step "Tworzenie skryptów startowych..."
+    Write-Step "Tworzenie skryptow startowych..."
 
-    # start.bat — uruchamia agenta z dashboardem, pause trzyma okno przy błędzie
+    # start.bat - uruchamia agenta z dashboardem, pause trzyma okno przy bledzie
     @"
 @echo off
 title NetGuard AI
@@ -257,7 +257,7 @@ pause
 
     Write-OK "start.bat utworzony"
 
-    # Otwórz port 8767 w Windows Firewall
+    # Otworz port 8767 w Windows Firewall
     try {
         $ruleName = "NetGuard Dashboard (port 8767)"
         $existing = Get-NetFirewallRule -DisplayName $ruleName -ErrorAction SilentlyContinue
@@ -267,32 +267,32 @@ pause
                 -Action Allow -Profile Any | Out-Null
             Write-OK "Port 8767 otwarty w Windows Firewall"
         } else {
-            Write-Info "Reguła firewall już istnieje"
+            Write-Info "Regula firewall juz istnieje"
         }
     } catch {
-        Write-Warn "Nie mogę dodać reguły firewall — uruchom ponownie jako Administrator"
+        Write-Warn "Nie moge dodac reguly firewall - uruchom ponownie jako Administrator"
     }
 
-    # Skrót na pulpicie — target: start.bat, flaga "Run as Administrator"
+    # Skrot na pulpicie - target: start.bat, flaga "Run as Administrator"
     try {
         $lnkPath = "$env:USERPROFILE\Desktop\NetGuard AI.lnk"
         $WshShell = New-Object -ComObject WScript.Shell
         $Shortcut = $WshShell.CreateShortcut($lnkPath)
         $Shortcut.TargetPath       = "$NETGUARD_DIR\start.bat"
         $Shortcut.WorkingDirectory = $NETGUARD_DIR
-        $Shortcut.Description      = "NetGuard AI — Agent Sieci Domowej"
+        $Shortcut.Description      = "NetGuard AI - Agent Sieci Domowej"
         $Shortcut.Save()
-        # Ustaw flagę "Uruchom jako administrator" w pliku .lnk (bajt 0x15, bit 0x20)
+        # Ustaw flage "Uruchom jako administrator" w pliku .lnk (bajt 0x15, bit 0x20)
         $bytes = [System.IO.File]::ReadAllBytes($lnkPath)
         $bytes[0x15] = $bytes[0x15] -bor 0x20
         [System.IO.File]::WriteAllBytes($lnkPath, $bytes)
-        Write-OK "Skrót na pulpicie (z uprawnieniami administratora)"
+        Write-OK "Skrot na pulpicie (z uprawnieniami administratora)"
     } catch {
-        Write-Warn "Nie mogę utworzyć skrótu na pulpicie: $_"
+        Write-Warn "Nie moge utworzyc skrotu na pulpicie: $_"
     }
 }
 
-# ── Skonfiguruj Task Scheduler (autostart) ────────────────────
+# -- Skonfiguruj Task Scheduler (autostart) --------------------
 function Setup-TaskScheduler {
     Write-Step "Konfigurowanie autostartu (Task Scheduler)..."
 
@@ -319,25 +319,25 @@ function Setup-TaskScheduler {
             -Trigger $trigger `
             -Settings $settings `
             -Principal $principal `
-            -Description "NetGuard AI — Agent monitorowania sieci domowej" `
+            -Description "NetGuard AI - Agent monitorowania sieci domowej" `
             -Force | Out-Null
 
-        Write-OK "Task Scheduler skonfigurowany — NetGuard startuje przy logowaniu"
+        Write-OK "Task Scheduler skonfigurowany - NetGuard startuje przy logowaniu"
     } catch {
-        Write-Warn "Nie mogę skonfigurować Task Scheduler: $_"
-        Write-Info "Uruchamiaj ręcznie przez start-admin.bat"
+        Write-Warn "Nie moge skonfigurowac Task Scheduler: $_"
+        Write-Info "Uruchamiaj recznie przez start-admin.bat"
     }
 }
 
-# ── Podsumowanie ──────────────────────────────────────────────
+# -- Podsumowanie ----------------------------------------------
 function Print-Summary {
     Write-Host ""
     Write-Host "  ╔════════════════════════════════════════════════╗" -ForegroundColor Green
-    Write-Host "  ║       NetGuard AI — instalacja zakończona!      ║" -ForegroundColor Green
+    Write-Host "  ║       NetGuard AI - instalacja zakonczona!      ║" -ForegroundColor Green
     Write-Host "  ╚════════════════════════════════════════════════╝" -ForegroundColor Green
     Write-Host ""
-    Write-Host "  Jak uruchomić:" -ForegroundColor Cyan
-    Write-Host "  Kliknij dwukrotnie: NetGuard AI (skrót na pulpicie)" -ForegroundColor Yellow
+    Write-Host "  Jak uruchomic:" -ForegroundColor Cyan
+    Write-Host "  Kliknij dwukrotnie: NetGuard AI (skrot na pulpicie)" -ForegroundColor Yellow
     Write-Host "  lub uruchom: $NETGUARD_DIR\start-admin.bat" -ForegroundColor Yellow
     Write-Host ""
     Write-Host "  Dashboard (po uruchomieniu):" -ForegroundColor Cyan
@@ -347,7 +347,7 @@ function Print-Summary {
     Write-Host ""
 }
 
-# ── GŁÓWNY FLOW ───────────────────────────────────────────────
+# -- GLOWNY FLOW -----------------------------------------------
 Write-Banner
 Check-Admin
 Install-Npcap
