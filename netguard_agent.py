@@ -26,10 +26,19 @@ from collections import defaultdict, deque
 from typing import Optional
 
 # ── Sprawdź uprawnienia ───────────────────────────────────────
-if os.geteuid() != 0:
-    print("❌ Ten skrypt wymaga uprawnień root/administrator.")
-    print("   Uruchom: sudo python3 netguard_agent.py")
-    sys.exit(1)
+IS_WINDOWS = sys.platform == 'win32'
+
+if IS_WINDOWS:
+    import ctypes
+    if not ctypes.windll.shell32.IsUserAnAdmin():
+        print("⚠️  Brak uprawnień administratora — skanowanie sieci może być ograniczone.")
+        print("   Aby uzyskać pełne możliwości uruchom terminal jako Administrator.")
+        # Kontynuujemy — dashboard będzie działał nawet bez admina
+else:
+    if os.geteuid() != 0:
+        print("❌ Ten skrypt wymaga uprawnień root/administrator.")
+        print("   Uruchom: sudo python3 netguard_agent.py")
+        sys.exit(1)
 
 # ── Importy opcjonalne ────────────────────────────────────────
 try:
@@ -400,15 +409,30 @@ class NetworkScanner:
             for iface, stats in gateways.items():
                 if stats.isup and iface not in ('lo', 'loopback'):
                     return iface
-        # Fallback — sprawdź przez routing
-        try:
-            result = subprocess.run(['ip', 'route', 'get', '8.8.8.8'],
-                                    capture_output=True, text=True)
-            m = re.search(r'dev (\S+)', result.stdout)
-            if m: return m.group(1)
-        except:
-            pass
-        return 'eno1'
+        # Fallback — sprawdź przez routing (tylko Linux)
+        if not IS_WINDOWS:
+            try:
+                result = subprocess.run(['ip', 'route', 'get', '8.8.8.8'],
+                                        capture_output=True, text=True)
+                m = re.search(r'dev (\S+)', result.stdout)
+                if m: return m.group(1)
+            except:
+                pass
+            return 'eno1'
+        else:
+            try:
+                result = subprocess.run(
+                    ['netsh', 'interface', 'show', 'interface'],
+                    capture_output=True, text=True
+                )
+                for line in result.stdout.splitlines():
+                    if 'Connected' in line or 'Połączony' in line:
+                        parts = line.split()
+                        if len(parts) >= 4:
+                            return ' '.join(parts[3:])
+            except:
+                pass
+            return 'Ethernet'
 
     def scan(self) -> dict:
         """Skanuj sieć przez ARP i zwróć listę urządzeń"""
@@ -1506,13 +1530,15 @@ class NetGuardAgent:
             # Otwórz przeglądarkę automatycznie po 2 sekundach
             url = f"http://localhost:{CONFIG['dashboard_port']}"
             def _open_browser():
-                time.sleep(2)
+                time.sleep(3)
+                cprint("OK", f"Dashboard dostępny pod adresem: {url}")
                 try:
                     import webbrowser
-                    webbrowser.open(url)
-                    cprint("OK", f"Dashboard otwarty w przeglądarce: {url}")
-                except:
-                    cprint("INFO", f"Otwórz ręcznie: {url}")
+                    opened = webbrowser.open(url)
+                    if not opened:
+                        cprint("INFO", f"Otwórz ręcznie w przeglądarce: {url}")
+                except Exception:
+                    cprint("INFO", f"Otwórz ręcznie w przeglądarce: {url}")
             threading.Thread(target=_open_browser, daemon=True).start()
 
         # Główna pętla skanowania
