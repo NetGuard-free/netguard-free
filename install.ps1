@@ -1,9 +1,15 @@
 # ============================================================
-#  NetGuard AI — Instalator Windows (PowerShell)
+#  NetGuard AI - Instalator Windows (PowerShell)
 #  Uruchom jako Administrator w PowerShell:
 #  Set-ExecutionPolicy Bypass -Scope Process -Force
 #  .\install.ps1
 # ============================================================
+
+# Ustaw UTF-8 zeby polskie znaki i symbole wyswietlaly sie poprawnie
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+[Console]::InputEncoding  = [System.Text.Encoding]::UTF8
+$OutputEncoding           = [System.Text.Encoding]::UTF8
+try { chcp 65001 | Out-Null } catch {}
 
 $NETGUARD_VERSION = "1.0.0"
 $NETGUARD_DIR = "$env:USERPROFILE\netguard"
@@ -21,15 +27,11 @@ function Write-Step  { param($msg) Write-Host "`n>> $msg" -ForegroundColor Magen
 function Write-Banner {
     Clear-Host
     Write-Host ""
-    Write-Host "  ███╗   ██╗███████╗████████╗ ██████╗ ██╗   ██╗ █████╗ ██████╗ ██████╗ " -ForegroundColor Cyan
-    Write-Host "  ████╗  ██║██╔════╝╚══██╔══╝██╔════╝ ██║   ██║██╔══██╗██╔══██╗██╔══██╗" -ForegroundColor Cyan
-    Write-Host "  ██╔██╗ ██║█████╗     ██║   ██║  ███╗██║   ██║███████║██████╔╝██║  ██║" -ForegroundColor Cyan
-    Write-Host "  ██║╚██╗██║██╔══╝     ██║   ██║   ██║██║   ██║██╔══██║██╔══██╗██║  ██║" -ForegroundColor Cyan
-    Write-Host "  ██║ ╚████║███████╗   ██║   ╚██████╔╝╚██████╔╝██║  ██║██║  ██║██████╔╝" -ForegroundColor Cyan
-    Write-Host "  ╚═╝  ╚═══╝╚══════╝   ╚═╝    ╚═════╝  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝ " -ForegroundColor Cyan
-    Write-Host ""
-    Write-Host "  Agent Sieci Domowej — wersja $NETGUARD_VERSION" -ForegroundColor Blue
-    Write-Host "  Instalator dla Windows" -ForegroundColor Cyan
+    Write-Host "  +--------------------------------------------------+" -ForegroundColor Cyan
+    Write-Host "  |        N E T G U A R D   A I                    |" -ForegroundColor Cyan
+    Write-Host "  |        Agent Sieci Domowej  v$NETGUARD_VERSION              |" -ForegroundColor Cyan
+    Write-Host "  |        Instalator Windows                        |" -ForegroundColor Cyan
+    Write-Host "  +--------------------------------------------------+" -ForegroundColor Cyan
     Write-Host ""
 }
 
