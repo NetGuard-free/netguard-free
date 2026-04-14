@@ -1531,7 +1531,10 @@ class NetGuardAgent:
 
     def _setup_signals(self):
         signal.signal(signal.SIGINT, self._graceful_shutdown)
-        signal.signal(signal.SIGTERM, self._graceful_shutdown)
+        try:
+            signal.signal(signal.SIGTERM, self._graceful_shutdown)
+        except (OSError, ValueError):
+            pass  # SIGTERM niedostępny na Windows
 
     def _graceful_shutdown(self, sig, frame):
         cprint("INFO", "Zatrzymywanie agenta NetGuard...")

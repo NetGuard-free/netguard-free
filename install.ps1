@@ -239,23 +239,21 @@ function Run-Wizard {
 function Create-Launcher {
     Write-Step "Tworzenie skryptów startowych..."
 
-    # start.bat — dla zwykłego uruchamiania
+    # start.bat — uruchamia agenta z dashboardem, pause trzyma okno przy błędzie
     @"
 @echo off
-echo Uruchamianie NetGuard AI...
+title NetGuard AI
 cd /d "%USERPROFILE%\netguard"
+echo  Uruchamianie NetGuard AI...
+echo  Dashboard bedzie dostepny pod: http://localhost:8767
+echo.
 "%USERPROFILE%\netguard-env\Scripts\python.exe" netguard_agent.py --dashboard
+echo.
+echo  NetGuard zakonczyl dzialanie.
 pause
-"@ | Set-Content "$NETGUARD_DIR\start.bat"
+"@ | Set-Content "$NETGUARD_DIR\start.bat" -Encoding ASCII
 
-    # start-admin.bat — uruchom jako administrator (pause zawsze widoczne)
-    @"
-@echo off
-powershell -Command "Start-Process cmd -ArgumentList '/c cd /d %USERPROFILE%\netguard ^& %USERPROFILE%\netguard-env\Scripts\python.exe netguard_agent.py --dashboard ^& pause' -Verb RunAs"
-"@ | Set-Content "$NETGUARD_DIR\start-admin.bat"
-
-    Write-OK "start.bat — zwykłe uruchomienie"
-    Write-OK "start-admin.bat — uruchomienie jako administrator (zalecane)"
+    Write-OK "start.bat utworzony"
 
     # Otwórz port 8767 w Windows Firewall
     try {
@@ -273,17 +271,22 @@ powershell -Command "Start-Process cmd -ArgumentList '/c cd /d %USERPROFILE%\net
         Write-Warn "Nie mogę dodać reguły firewall — uruchom ponownie jako Administrator"
     }
 
-    # Skrót na pulpicie
+    # Skrót na pulpicie — target: start.bat, flaga "Run as Administrator"
     try {
+        $lnkPath = "$env:USERPROFILE\Desktop\NetGuard AI.lnk"
         $WshShell = New-Object -ComObject WScript.Shell
-        $Shortcut = $WshShell.CreateShortcut("$env:USERPROFILE\Desktop\NetGuard AI.lnk")
-        $Shortcut.TargetPath = "$NETGUARD_DIR\start-admin.bat"
+        $Shortcut = $WshShell.CreateShortcut($lnkPath)
+        $Shortcut.TargetPath       = "$NETGUARD_DIR\start.bat"
         $Shortcut.WorkingDirectory = $NETGUARD_DIR
-        $Shortcut.Description = "NetGuard AI — Agent Sieci Domowej"
+        $Shortcut.Description      = "NetGuard AI — Agent Sieci Domowej"
         $Shortcut.Save()
-        Write-OK "Skrót na pulpicie"
+        # Ustaw flagę "Uruchom jako administrator" w pliku .lnk (bajt 0x15, bit 0x20)
+        $bytes = [System.IO.File]::ReadAllBytes($lnkPath)
+        $bytes[0x15] = $bytes[0x15] -bor 0x20
+        [System.IO.File]::WriteAllBytes($lnkPath, $bytes)
+        Write-OK "Skrót na pulpicie (z uprawnieniami administratora)"
     } catch {
-        Write-Warn "Nie mogę utworzyć skrótu na pulpicie"
+        Write-Warn "Nie mogę utworzyć skrótu na pulpicie: $_"
     }
 }
 
