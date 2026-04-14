@@ -151,10 +151,11 @@ function Install-PythonDeps {
 function Download-Files {
     Write-Step "Pobieranie plików NetGuard..."
 
-    $localAgent = Join-Path (Split-Path $MyInvocation.ScriptName) "netguard_agent.py"
-    if (Test-Path $localAgent) {
+    $scriptDir  = if ($PSScriptRoot) { $PSScriptRoot } else { "" }
+    $localAgent = if ($scriptDir) { Join-Path $scriptDir "netguard_agent.py" } else { "" }
+    if ($localAgent -and (Test-Path $localAgent)) {
         Copy-Item $localAgent "$NETGUARD_DIR\netguard_agent.py" -Force
-        $localDash = Join-Path (Split-Path $MyInvocation.ScriptName) "network-agent-dashboard.html"
+        $localDash = Join-Path $scriptDir "network-agent-dashboard.html"
         if (Test-Path $localDash) {
             Copy-Item $localDash "$NETGUARD_DIR\network-agent-dashboard.html" -Force
         }
