@@ -2267,7 +2267,15 @@ window.addEventListener('load', async () => {
   await fetchToken();
   await checkLicense();
   await fetchAll();
-  setInterval(fetchAll, 30000);
+  // Przez pierwsze 2 minuty odswiezaj co 5s (agent moze jeszcze skanowac)
+  // potem normalny interwal 30s
+  let _quickTicks = 0;
+  const _quickTimer = setInterval(async () => {
+    await fetchAll();
+    _quickTicks++;
+    if (_quickTicks >= 24) clearInterval(_quickTimer); // 24 * 5s = 120s
+  }, 5000);
+  setTimeout(() => setInterval(fetchAll, 30000), 120000);
   setInterval(fetchToken, 300000);
   setInterval(checkLicense, 300000);
   showPage('overview');

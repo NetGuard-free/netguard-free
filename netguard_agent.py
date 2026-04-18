@@ -1698,19 +1698,71 @@ class NetGuardAgent:
             return CONFIG["interface"]
         return self.scanner.get_interface()
 
+    def _add_own_host(self):
+        """Dodaje własny komputer do active_devices natychmiast (cross-platform)."""
+        try:
+            own_ip = ""
+            own_mac = ""
+            # IP przez UDP trick (nie wysyła danych)
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+                s.connect(("8.8.8.8", 80))
+                own_ip = s.getsockname()[0]
+            # MAC przez psutil (AF_LINK działa na Windows i Linux)
+            if PSUTIL_AVAILABLE:
+                af_link = getattr(psutil, 'AF_LINK', 17)
+                for addrs in psutil.net_if_addrs().values():
+                    for a in addrs:
+                        if a.family == af_link and a.address:
+                            mac = a.address.lower().replace('-', ':')
+                            if re.match(r'^([0-9a-f]{2}:){5}[0-9a-f]{2}$', mac) \
+                                    and mac != '00:00:00:00:00:00':
+                                own_mac = mac
+                                break
+                    if own_mac:
+                        break
+            if own_ip and own_mac:
+                self.scanner.active_devices[own_mac] = {
+                    "ip": own_ip, "mac": own_mac,
+                    "vendor": self.scanner._get_vendor(own_mac),
+                    "hostname": socket.gethostname(),
+                    "status": "online",
+                    "is_host": True,
+                    "tag": "trusted",
+                    "source": "host",
+                }
+                cprint("INFO", f"Host: {socket.gethostname()} ({own_ip})")
+        except Exception:
+            pass
+
     def run(self, with_dashboard: bool = False):
         self.running = True
         iface = self._detect_interface()
-        cprint("OK", f"NetGuard AI uruchomiony", f"Sieć: {CONFIG['network_range']} | Interfejs: {iface}")
+        cprint("OK", f"NetGuard AI uruchomiony", f"Siec: {CONFIG['network_range']} | Interfejs: {iface}")
         cprint("INFO", "NetGuard FREE — wersja Demo",
                f"Limit: {FREE_LIMITS['max_devices']} urzadzen | Bez AI | Pelna wersja: netguardhome.pl")
 
-        # Wstępne szybkie wykrycie urządzeń przez arp -a (natychmiastowe, bez czekania na ARP sweep)
+        # 1. Własny komputer — natychmiast (psutil, brak opóźnienia)
+        self._add_own_host()
+
+        # 2. ARP cache systemu — natychmiast (arp -a, brak opóźnienia)
         try:
             self.router.sync()
-            cprint("INFO", f"Wstepne wykrycie: {len(self.scanner.active_devices)} urzadzen z ARP cache")
+            cprint("INFO", f"ARP cache: {len(self.scanner.active_devices)} urzadzen")
         except Exception:
             pass
+
+        # 3. Pełny skan w wątku w tle (ping sweep trwa 5-10s, nie blokuje)
+        _initial_scan_done = threading.Event()
+        def _bg_scan():
+            try:
+                cprint("INFO", "Skanowanie sieci w tle...")
+                devices = self.scanner.scan()
+                cprint("OK", f"Skan zakonczony: {len(devices)} urzadzen")
+            except Exception as e:
+                cprint("WARN", f"Blad skanu wstepnego: {e}")
+            finally:
+                _initial_scan_done.set()
+        threading.Thread(target=_bg_scan, daemon=True).start()
 
         # Uruchom przechwytywanie pakietów w tle
         if CONFIG["packet_capture"]:
@@ -1724,19 +1776,21 @@ class NetGuardAgent:
                 daemon=True
             )
             dash_thread.start()
-            # Otwórz przeglądarkę automatycznie po 2 sekundach
             url = f"http://localhost:{CONFIG['dashboard_port']}"
             def _open_browser():
-                time.sleep(3)
-                cprint("OK", f"Dashboard dostępny pod adresem: {url}")
+                time.sleep(2)  # Flask potrzebuje chwili na start
+                cprint("OK", f"Dashboard dostepny pod adresem: {url}")
                 try:
                     import webbrowser
                     opened = webbrowser.open(url)
                     if not opened:
-                        cprint("INFO", f"Otwórz ręcznie w przeglądarce: {url}")
+                        cprint("INFO", f"Otworz recznie w przegladarce: {url}")
                 except Exception:
-                    cprint("INFO", f"Otwórz ręcznie w przeglądarce: {url}")
+                    cprint("INFO", f"Otworz recznie w przegladarce: {url}")
             threading.Thread(target=_open_browser, daemon=True).start()
+
+        # Czekaj na zakończenie skanu wstępnego (max 15s), potem normalna pętla
+        _initial_scan_done.wait(timeout=15)
 
         # Główna pętla skanowania
         last_known_macs = set()
