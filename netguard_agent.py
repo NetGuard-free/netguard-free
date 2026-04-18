@@ -969,6 +969,8 @@ class RouterSync:
                 self.scanner.active_devices[mac]["ip"]     = ip
                 self.scanner.active_devices[mac]["status"] = "online"
 
+        # Zastosuj limit po każdej synchronizacji
+        self.scanner._apply_limit(self.scanner.active_devices)
         return new_count
 
     def _read_arp_table(self) -> dict:
