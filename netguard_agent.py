@@ -325,14 +325,17 @@ DASHBOARD_TOKEN = _get_or_create_token()
 # Aby znieść limit i uzyskać dostęp do zdalnego dashboardu i aplikacji mobilnej,
 # zakup licencję NetGuard Home na stronie https://netguardhome.pl
 
+# Wersja DEMO — limity hardcoded, brak systemu licencji
+# Pełna wersja NetGuard Home: https://netguardhome.pl
 FREE_LIMITS = {
-    "max_devices": 25,
-    "history_days": 30,
+    "max_devices": 5,
+    "history_days": 7,
 }
 
-# Plan aktywny przy starcie (Wymuszone zawsze na FREE w wersji otwartoźródłowej)
+# Plan aktywny przy starcie (zawsze FREE w wersji demo)
 LICENSE_PLAN = "free"
 IS_HOME = False
+IS_PAID = False
 
 # Znane złośliwe domeny (mini-lista — w pełnej wersji pobierana z blocklists)
 MALICIOUS_DOMAINS = {
@@ -472,6 +475,22 @@ class NetworkScanner:
                 pass
             return 'Ethernet'
 
+    def _apply_limit(self, devices: dict) -> dict:
+        """Zastosuj limit urządzeń Demo i ustaw active_devices."""
+        if len(devices) > FREE_LIMITS["max_devices"]:
+            trusted = {m: d for m, d in devices.items()
+                      if d.get("tag") == "trusted" or d.get("is_host")}
+            others  = {m: d for m, d in devices.items()
+                      if m not in trusted}
+            allowed = FREE_LIMITS["max_devices"] - len(trusted)
+            trimmed = dict(list(others.items())[:max(0, allowed)])
+            devices = {**trusted, **trimmed}
+            cprint("WARN",
+                f"Demo: pokazuje {FREE_LIMITS['max_devices']} urzadzen",
+                "Pelna wersja bez limitu: netguardhome.pl")
+        self.active_devices = devices
+        return devices
+
     def scan(self) -> dict:
         """Skanuj sieć przez ARP i zwróć listę urządzeń"""
         if not SCAPY_AVAILABLE:
@@ -522,23 +541,7 @@ class NetworkScanner:
             devices[host_mac]["tag"] = "trusted"
             devices[host_mac]["hostname"] = CONFIG["device_names"].get(host_mac) or socket.gethostname()
 
-        self.active_devices = devices
-
-        # Limit urządzeń dla planu Free
-        if not IS_HOME and len(devices) > FREE_LIMITS["max_devices"]:
-            # Zachowaj zaufane + własny komputer, obetnij resztę
-            trusted = {m: d for m, d in devices.items()
-                      if d.get("tag") == "trusted" or d.get("is_host")}
-            others  = {m: d for m, d in devices.items()
-                      if m not in trusted}
-            allowed = FREE_LIMITS["max_devices"] - len(trusted)
-            trimmed = dict(list(others.items())[:max(0, allowed)])
-            devices = {**trusted, **trimmed}
-            self.active_devices = devices
-            cprint("WARN",
-                f"Plan Free: pokazuję {FREE_LIMITS['max_devices']} z {len(devices)} urządzeń",
-                "Przejdź na Home aby monitorować bez limitu — netguardhome.pl")
-
+        devices = self._apply_limit(devices)
         cprint("OK", f"Znaleziono {len(devices)} urządzeń w sieci")
         return devices
 
@@ -592,7 +595,7 @@ class NetworkScanner:
                             devices[mac] = {"ip": ip, "mac": mac, "status": "online",
                                           "vendor": self._get_vendor(mac),
                                           "hostname": self._resolve_hostname(ip)}
-            return devices
+            return self._apply_limit(devices)
         except Exception as e:
             cprint("WARN", f"Fallback scan (nmap) failed: {e}")
             return {}
@@ -642,7 +645,7 @@ class NetworkScanner:
                     }
         except Exception as e:
             cprint("WARN", f"Skan Windows (arp -a): {e}")
-        return devices
+        return self._apply_limit(devices)
 
     def _get_vendor(self, mac: str) -> str:
         """Wyszukaj producenta na podstawie OUI (pierwsze 3 bajty MAC)"""
@@ -1468,18 +1471,10 @@ def start_dashboard(scanner: 'NetworkScanner', analyzer: 'PacketAnalyzer',
 
     @app.route('/api/chat', methods=['POST'])
     def api_chat():
-        data = request.json or {}
-        question = data.get("message", "")
-        if not question:
-            return jsonify({"error": "Brak wiadomości"}), 400
-        # Zbuduj kontekst sieci
-        context = json.dumps({
-            "devices": list(scanner.active_devices.values())[:10],
-            "recent_alerts": analyzer.get_recent_alerts(5),
-            "network": CONFIG["network_range"]
-        }, ensure_ascii=False)
-        response = ai.analyze(context, question)
-        return jsonify({"response": response})
+        return jsonify({
+            "error": "AI Chat niedostepny w wersji Demo.",
+            "upgrade_url": "https://netguardhome.pl/#cennik"
+        }), 403
 
     @app.route('/api/block/<mac>', methods=['POST'])
     @require_token
@@ -1569,10 +1564,11 @@ def start_dashboard(scanner: 'NetworkScanner', analyzer: 'PacketAnalyzer',
     def api_license():
         """Informacja o aktualnym planie licencyjnym."""
         return jsonify({
-            "plan": LICENSE_PLAN,
-            "is_home": IS_HOME,
-            "max_devices": None if IS_HOME else FREE_LIMITS["max_devices"],
-            "history_days": None if IS_HOME else FREE_LIMITS["history_days"],
+            "plan": "free",
+            "is_home": False,
+            "is_paid": False,
+            "max_devices": FREE_LIMITS["max_devices"],
+            "history_days": FREE_LIMITS["history_days"],
             "upgrade_url": "https://netguardhome.pl/#cennik",
         })
 
@@ -1626,11 +1622,8 @@ class NetGuardAgent:
         self.running = True
         iface = self._detect_interface()
         cprint("OK", f"NetGuard AI uruchomiony", f"Sieć: {CONFIG['network_range']} | Interfejs: {iface}")
-        if IS_HOME:
-            cprint("OK", "Licencja: NetGuard HOME ✓", "Wszystkie funkcje odblokowane")
-        else:
-            cprint("INFO", "Licencja: NetGuard FREE",
-                   f"Limit: {FREE_LIMITS['max_devices']} urządzeń | Uaktualnij: netguardhome.pl")
+        cprint("INFO", "NetGuard FREE — wersja Demo",
+               f"Limit: {FREE_LIMITS['max_devices']} urzadzen | Bez AI | Pelna wersja: netguardhome.pl")
 
         # Uruchom przechwytywanie pakietów w tle
         if CONFIG["packet_capture"]:
