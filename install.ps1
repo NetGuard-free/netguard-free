@@ -166,6 +166,7 @@ function Download-Files {
         try {
             Invoke-WebRequest -Uri "$REPO_URL/netguard_agent.py" -OutFile "$NETGUARD_DIR\netguard_agent.py" -UseBasicParsing
             Invoke-WebRequest -Uri "$REPO_URL/network-agent-dashboard.html" -OutFile "$NETGUARD_DIR\network-agent-dashboard.html" -UseBasicParsing
+            Invoke-WebRequest -Uri "$REPO_URL/netguard.ico" -OutFile "$NETGUARD_DIR\netguard.ico" -UseBasicParsing
             Write-OK "Pobrano z GitHub"
         } catch {
             Write-Fail "Nie moge pobrac plikow: $_"
@@ -281,6 +282,7 @@ pause
         $Shortcut.TargetPath       = "$NETGUARD_DIR\start.bat"
         $Shortcut.WorkingDirectory = $NETGUARD_DIR
         $Shortcut.Description      = "NetGuard AI - Agent Sieci Domowej"
+        $Shortcut.IconLocation     = "$NETGUARD_DIR\netguard.ico,0"
         $Shortcut.Save()
         # Ustaw flage "Uruchom jako administrator" w pliku .lnk (bajt 0x15, bit 0x20)
         $bytes = [System.IO.File]::ReadAllBytes($lnkPath)
