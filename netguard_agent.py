@@ -725,25 +725,29 @@ class PacketAnalyzer:
         self._last_io = None                        # (bytes_recv, bytes_sent) z psutil
 
     def start(self, interface: str):
-        if not SCAPY_AVAILABLE:
-            cprint("WARN", "Scapy niedostępne — analiza pakietów wyłączona")
-            return
         self.running = True
         self.interface = interface
-        t = threading.Thread(target=self._capture_loop, daemon=True)
-        t.start()
+        # IO sampler działa zawsze (psutil nie wymaga Scapy)
         t2 = threading.Thread(target=self._io_sampler_loop, daemon=True)
         t2.start()
-        cprint("OK", f"Przechwytywanie pakietów uruchomione na {interface}")
+        if not SCAPY_AVAILABLE:
+            cprint("WARN", "Scapy niedostępne — analiza pakietow wylaczona (ruch I/O aktywny)")
+            return
+        t = threading.Thread(target=self._capture_loop, daemon=True)
+        t.start()
+        cprint("OK", f"Przechwytywanie pakietow uruchomione na {interface}")
 
     def _io_sampler_loop(self):
         """Próbkuje I/O interfejsu co 10s przez psutil."""
-        iface = getattr(self, 'interface', None)
         while self.running:
             try:
                 if PSUTIL_AVAILABLE:
-                    counters = psutil.net_io_counters(pernic=True)
-                    data = counters.get(iface)
+                    iface = getattr(self, 'interface', None)
+                    # Próbuj konkretny interfejs, fallback na sumę wszystkich
+                    per_nic = psutil.net_io_counters(pernic=True)
+                    data = per_nic.get(iface) if iface else None
+                    if data is None:
+                        data = psutil.net_io_counters(pernic=False)
                     if data:
                         recv = data.bytes_recv
                         sent = data.bytes_sent
@@ -1700,6 +1704,13 @@ class NetGuardAgent:
         cprint("OK", f"NetGuard AI uruchomiony", f"Sieć: {CONFIG['network_range']} | Interfejs: {iface}")
         cprint("INFO", "NetGuard FREE — wersja Demo",
                f"Limit: {FREE_LIMITS['max_devices']} urzadzen | Bez AI | Pelna wersja: netguardhome.pl")
+
+        # Wstępne szybkie wykrycie urządzeń przez arp -a (natychmiastowe, bez czekania na ARP sweep)
+        try:
+            self.router.sync()
+            cprint("INFO", f"Wstepne wykrycie: {len(self.scanner.active_devices)} urzadzen z ARP cache")
+        except Exception:
+            pass
 
         # Uruchom przechwytywanie pakietów w tle
         if CONFIG["packet_capture"]:
