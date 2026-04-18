@@ -345,6 +345,9 @@ function Print-Summary {
     Write-Host "  Dashboard (po uruchomieniu):" -ForegroundColor Cyan
     Write-Host "  http://localhost:8767" -ForegroundColor Yellow
     Write-Host ""
+    Write-Host "  Jak zatrzymac NetGuarda:" -ForegroundColor Cyan
+    Write-Host "  W oknie konsoli nacisnij Ctrl+C" -ForegroundColor Yellow
+    Write-Host ""
     Write-Host "  Dokumentacja: https://github.com/NetGuard-free/netguard-free" -ForegroundColor Cyan
     Write-Host ""
 }
