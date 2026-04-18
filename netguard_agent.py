@@ -718,6 +718,11 @@ class PacketAnalyzer:
         self.arp_table = {}                    # ip -> mac mapping (do wykrywania ARP spoof)
         self.alerts_queue = deque(maxlen=100)
         self.running = False
+        # Statystyki ruchu
+        self.port_counts = defaultdict(int)         # port -> liczba połączeń
+        self.device_bytes = defaultdict(int)        # mac -> bajty (przybliżone)
+        self.traffic_samples = deque(maxlen=60)     # ostatnie 60 próbek co 10s (10 min)
+        self._last_io = None                        # (bytes_recv, bytes_sent) z psutil
 
     def start(self, interface: str):
         if not SCAPY_AVAILABLE:
@@ -727,7 +732,32 @@ class PacketAnalyzer:
         self.interface = interface
         t = threading.Thread(target=self._capture_loop, daemon=True)
         t.start()
+        t2 = threading.Thread(target=self._io_sampler_loop, daemon=True)
+        t2.start()
         cprint("OK", f"Przechwytywanie pakietów uruchomione na {interface}")
+
+    def _io_sampler_loop(self):
+        """Próbkuje I/O interfejsu co 10s przez psutil."""
+        iface = getattr(self, 'interface', None)
+        while self.running:
+            try:
+                if PSUTIL_AVAILABLE:
+                    counters = psutil.net_io_counters(pernic=True)
+                    data = counters.get(iface)
+                    if data:
+                        recv = data.bytes_recv
+                        sent = data.bytes_sent
+                        if self._last_io is not None:
+                            last_recv, last_sent = self._last_io
+                            self.traffic_samples.append({
+                                "t": int(time.time()),
+                                "down": max(0, recv - last_recv),
+                                "up":   max(0, sent - last_sent),
+                            })
+                        self._last_io = (recv, sent)
+            except Exception:
+                pass
+            time.sleep(10)
 
     def stop(self):
         self.running = False
@@ -795,9 +825,16 @@ class PacketAnalyzer:
                             f"Anomalia DNS: {len(recent)} zapytań/min z {src_ip}", alert)
                         cprint("WARN", f"DNS Tunneling suspect: {src_ip}", f"{len(recent)} queries/min")
 
-            # Port Scan Detection
+            # Zliczanie bajtów per urządzenie (MAC z warstwy Ethernet)
+            if Ether in pkt:
+                src_mac = pkt[Ether].src.lower()
+                pkt_len = len(pkt)
+                self.device_bytes[src_mac] += pkt_len
+
+            # Port Scan Detection + zliczanie aktywności portów
             if TCP in pkt:
                 dst_port = pkt[TCP].dport
+                self.port_counts[dst_port] += 1
                 self.port_access[src_ip].add(dst_port)
                 if len(self.port_access[src_ip]) > CONFIG["port_scan_threshold"]:
                     alert = {"type": "PORT_SCAN", "severity": "HIGH",
@@ -1572,6 +1609,43 @@ def start_dashboard(scanner: 'NetworkScanner', analyzer: 'PacketAnalyzer',
             "max_devices": FREE_LIMITS["max_devices"],
             "history_days": FREE_LIMITS["history_days"],
             "upgrade_url": "https://netguardhome.pl/#cennik",
+        })
+
+    @app.route('/api/traffic')
+    def api_traffic():
+        """Statystyki ruchu sieciowego: próbki I/O, top urządzenia, top porty."""
+        COMMON_PORTS = {
+            80: "HTTP", 443: "HTTPS", 53: "DNS", 22: "SSH", 21: "FTP",
+            25: "SMTP", 587: "SMTP", 993: "IMAP", 3389: "RDP", 8080: "HTTP-alt",
+            8767: "NetGuard", 5353: "mDNS", 67: "DHCP", 123: "NTP",
+            1900: "UPnP", 5050: "Webhook",
+        }
+        samples = list(analyzer.traffic_samples)
+
+        dev_bytes = dict(analyzer.device_bytes)
+        top_devices = []
+        for mac, byt in sorted(dev_bytes.items(), key=lambda x: -x[1])[:6]:
+            name = CONFIG.get("device_names", {}).get(mac, mac)
+            dev = scanner.active_devices.get(mac, {})
+            top_devices.append({
+                "mac": mac,
+                "name": name,
+                "ip": dev.get("ip", ""),
+                "bytes": byt,
+            })
+
+        top_ports = []
+        for port, count in sorted(analyzer.port_counts.items(), key=lambda x: -x[1])[:8]:
+            top_ports.append({
+                "port": port,
+                "proto": COMMON_PORTS.get(port, "TCP/UDP"),
+                "count": count,
+            })
+
+        return jsonify({
+            "samples": samples,
+            "top_devices": top_devices,
+            "top_ports": top_ports,
         })
 
     @app.route('/')
