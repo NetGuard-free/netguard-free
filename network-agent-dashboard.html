@@ -2029,6 +2029,10 @@ async function setConnection(type) {
 }
 
 function openScheduleModal() {
+  if (LICENSE_PLAN_LOCAL === 'free') {
+    showNotification('🔒 Kontrola rodzicielska dostępna tylko w wersji Home — netguardhome.pl', 'warn', 6000);
+    return;
+  }
   document.getElementById('sch-mac-display').textContent = currentDeviceMAC;
   document.getElementById('schedule-modal-overlay').classList.add('open');
 }
