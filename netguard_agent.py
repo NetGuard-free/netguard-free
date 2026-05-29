@@ -318,24 +318,9 @@ CONFIG = load_config()
 DASHBOARD_TOKEN = _get_or_create_token()
 
 # ══════════════════════════════════════════════════════════════
-# SYSTEM LICENCJI (FREE VERSION)
-# ══════════════════════════════════════════════════════════════
-
-# W darmowej wersji otwartego oprogramowania limit to 25 urządzeń i brak płatnych funkcji zdalnych.
-# Aby znieść limit i uzyskać dostęp do zdalnego dashboardu i aplikacji mobilnej,
-# zakup licencję NetGuard Home na stronie https://netguardhome.pl
-
-# Wersja DEMO — limity hardcoded, brak systemu licencji
+# WERSJA FREE (DEMO) — limit 5 urządzeń, historia 7 dni, bez AI
 # Pełna wersja NetGuard Home: https://netguardhome.pl
-FREE_LIMITS = {
-    "max_devices": 5,
-    "history_days": 7,
-}
-
-# Plan aktywny przy starcie (zawsze FREE w wersji demo)
-LICENSE_PLAN = "free"
-IS_HOME = False
-IS_PAID = False
+# ══════════════════════════════════════════════════════════════
 
 # Znane złośliwe domeny (mini-lista — w pełnej wersji pobierana z blocklists)
 MALICIOUS_DOMAINS = {
@@ -477,16 +462,16 @@ class NetworkScanner:
 
     def _apply_limit(self, devices: dict) -> dict:
         """Zastosuj limit urządzeń Demo i ustaw active_devices."""
-        if len(devices) > FREE_LIMITS["max_devices"]:
+        if len(devices) > 5:
             trusted = {m: d for m, d in devices.items()
                       if d.get("tag") == "trusted" or d.get("is_host")}
             others  = {m: d for m, d in devices.items()
                       if m not in trusted}
-            allowed = FREE_LIMITS["max_devices"] - len(trusted)
+            allowed = 5 - len(trusted)
             trimmed = dict(list(others.items())[:max(0, allowed)])
             devices = {**trusted, **trimmed}
             cprint("WARN",
-                f"Demo: pokazuje {FREE_LIMITS['max_devices']} urzadzen",
+                "Demo: pokazuje 5 urzadzen",
                 "Pelna wersja bez limitu: netguardhome.pl")
         self.active_devices = devices
         return devices
@@ -1610,8 +1595,8 @@ def start_dashboard(scanner: 'NetworkScanner', analyzer: 'PacketAnalyzer',
             "plan": "free",
             "is_home": False,
             "is_paid": False,
-            "max_devices": FREE_LIMITS["max_devices"],
-            "history_days": FREE_LIMITS["history_days"],
+            "max_devices": 5,
+            "history_days": 7,
             "upgrade_url": "https://netguardhome.pl/#cennik",
         })
 
@@ -1739,7 +1724,7 @@ class NetGuardAgent:
         iface = self._detect_interface()
         cprint("OK", f"NetGuard AI uruchomiony", f"Siec: {CONFIG['network_range']} | Interfejs: {iface}")
         cprint("INFO", "NetGuard FREE — wersja Demo",
-               f"Limit: {FREE_LIMITS['max_devices']} urzadzen | Bez AI | Pelna wersja: netguardhome.pl")
+               "Limit: 5 urzadzen | Bez AI | Pelna wersja: netguardhome.pl")
 
         # 1. Własny komputer — natychmiast (psutil, brak opóźnienia)
         self._add_own_host()
