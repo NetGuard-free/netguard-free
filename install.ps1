@@ -1,5 +1,5 @@
 # ============================================================
-#  NetGuard AI - Instalator Windows (PowerShell)
+#  NetGuard - Instalator Windows (PowerShell)
 #  Uruchom jako Administrator w PowerShell:
 #  Set-ExecutionPolicy Bypass -Scope Process -Force
 #  .\install.ps1
@@ -28,7 +28,7 @@ function Write-Banner {
     Clear-Host
     Write-Host ""
     Write-Host "  +--------------------------------------------------+" -ForegroundColor Cyan
-    Write-Host "  |        N E T G U A R D   A I                    |" -ForegroundColor Cyan
+    Write-Host "  |        N E T G U A R D                           |" -ForegroundColor Cyan
     Write-Host "  |        Agent Sieci Domowej  v$NETGUARD_VERSION              |" -ForegroundColor Cyan
     Write-Host "  |        Instalator Windows                        |" -ForegroundColor Cyan
     Write-Host "  +--------------------------------------------------+" -ForegroundColor Cyan
