@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
 ╔══════════════════════════════════════════════════════════════╗
-║         NETGUARD AI — Lokalny Agent Sieci Domowej            ║
-║         Wersja: Free Edition (limit 25 urządzeń)             ║
+║         NETGUARD  — Lokalny Agent Sieci Domowej            ║
+║         Wersja: Free Edition (limit 5 urządzeń)             ║
 ║         Licencja: Business Source License 1.1 (BSL)          ║
-║         Autor: Arkadiusz Dragun (NetGuardHome)               ║
+║         Autor: netguardhome.pl               ║
 ╚══════════════════════════════════════════════════════════════╝
 
 URUCHOMIENIE:
