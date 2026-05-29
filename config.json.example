@@ -3,7 +3,6 @@
   "interface": "auto",
   "scan_interval": 60,
   "packet_capture": true,
-  "llm_model": "llama3.2",
   "alert_email": "",
   "dashboard_port": 8767,
   "max_dns_per_min": 300,

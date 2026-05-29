@@ -1,4 +1,4 @@
-# Changelog — NetGuard AI
+# Changelog — NetGuard
 
 Wszystkie istotne zmiany w projekcie są dokumentowane w tym pliku.
 Format oparty na [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/).
@@ -56,14 +56,3 @@ Format oparty na [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/).
 - Opcjonalnie: Ollama + llama3.2 (lokalny LLM)
 - Opcjonalnie: Npcap (Windows, do skanowania ARP)
 
----
-
-## Planowane w v1.1.0
-
-- Aplikacja mobilna (iOS/Android) — push notyfikacje
-- Integracja z routerami (pobieranie pełnej listy urządzeń)
-- Automatyczna aktualizacja bazy złośliwych domen
-- Wykrywanie słabych haseł WiFi
-- Mapa topologii sieci w dashboardzie
-- Eksport raportów do PDF
-- Obsługa wielu sieci jednocześnie

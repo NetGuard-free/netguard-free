@@ -1,7 +1,7 @@
 FROM python:3.11-slim-bookworm
 
-LABEL maintainer="NetGuard AI"
-LABEL description="NetGuard AI — Lokalny Agent Sieci Domowej"
+LABEL maintainer="NetGuard"
+LABEL description="NetGuard — Lokalny Agent Sieci Domowej"
 LABEL version="1.0.0"
 
 # Zależności systemowe

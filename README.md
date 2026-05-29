@@ -1,4 +1,4 @@
-# NetGuard AI — Agent Sieci Domowej (Wersja Free)
+# NetGuard — Agent Sieci Domowej (Wersja Free)
 
 > Lokalny agent który monitoruje Twoją sieć domową, wykrywa zagrożenia i codziennie wysyła raport emailowy. Zero chmury. 100% prywatności.
 
@@ -130,7 +130,7 @@ sudo systemctl start netguard
 sudo systemctl status netguard
 ```
 
-Na Windows użyj skrótu **NetGuard AI** na pulpicie lub pliku `start.bat` w katalogu `%USERPROFILE%\netguard\`.
+Na Windows użyj skrótu **NetGuard** na pulpicie lub pliku `start.bat` w katalogu `%USERPROFILE%\netguard\`.
 
 Aby zatrzymać: naciśnij **Ctrl+C** w oknie konsoli.
 
