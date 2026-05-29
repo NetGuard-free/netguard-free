@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================
-#  NetGuard AI — Instalator (Linux / macOS / Raspberry Pi)
+#  NetGuard — Instalator (Linux / macOS / Raspberry Pi / NanoPi)
 #  https://github.com/NetGuard-free/netguard-free
 # ============================================================
 
