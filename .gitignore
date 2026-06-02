@@ -4,6 +4,7 @@ config.json
 # Logi i baza danych
 *.log
 devices.json
+netguard_devices.json
 *.db
 
 # Python
