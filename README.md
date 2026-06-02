@@ -1,6 +1,6 @@
 # NetGuard — Agent Sieci Domowej (Wersja Free)
 
-> Lokalny agent który monitoruje Twoją sieć domową, wykrywa zagrożenia i codziennie wysyła raport emailowy. Zero chmury. 100% prywatności.
+> Lokalny agent który monitoruje Twoją sieć domową, wykrywa zagrożenia i codziennie wysyła raport emailowy. Zero chmury. 100% prywatności. Wersja 1.0.0.
 
 ![NetGuard Dashboard](https://raw.githubusercontent.com/NetGuard-free/netguard-free/main/docs/Screenshot.png)
 
