@@ -1,23 +1,22 @@
 # ============================================================
-#  NetGuard - Instalator Windows (PowerShell)
+#  NetGuard AI - Instalator Windows (PowerShell)
+#  Wersja modułowa (Free Edition)
 #  Uruchom jako Administrator w PowerShell:
 #  Set-ExecutionPolicy Bypass -Scope Process -Force
 #  .\install.ps1
 # ============================================================
 
-# Ustaw UTF-8 zeby polskie znaki i symbole wyswietlaly sie poprawnie
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 [Console]::InputEncoding  = [System.Text.Encoding]::UTF8
 $OutputEncoding           = [System.Text.Encoding]::UTF8
 try { chcp 65001 | Out-Null } catch {}
 
-$NETGUARD_VERSION = "1.0.0"
+$NETGUARD_VERSION = "1.5.0"
 $NETGUARD_DIR = "$env:USERPROFILE\netguard"
 $VENV_DIR = "$env:USERPROFILE\netguard-env"
 $PYTHON_MIN = "3.9"
-$REPO_URL = "https://raw.githubusercontent.com/NetGuard-free/netguard-free/main"
+$PKG_URL = "https://raw.githubusercontent.com/NetGuard-free/netguard-free/main/netguard-v1.5.0.zip"
 
-# Kolory
 function Write-OK    { param($msg) Write-Host "  [OK] $msg" -ForegroundColor Green }
 function Write-Info  { param($msg) Write-Host "  [i]  $msg" -ForegroundColor Cyan }
 function Write-Warn  { param($msg) Write-Host "  [!]  $msg" -ForegroundColor Yellow }
@@ -28,14 +27,13 @@ function Write-Banner {
     Clear-Host
     Write-Host ""
     Write-Host "  +--------------------------------------------------+" -ForegroundColor Cyan
-    Write-Host "  |        N E T G U A R D                           |" -ForegroundColor Cyan
+    Write-Host "  |        N E T G U A R D   A I                    |" -ForegroundColor Cyan
     Write-Host "  |        Agent Sieci Domowej  v$NETGUARD_VERSION              |" -ForegroundColor Cyan
-    Write-Host "  |        Instalator Windows                        |" -ForegroundColor Cyan
+    Write-Host "  |        Instalator Windows (modułowy)             |" -ForegroundColor Cyan
     Write-Host "  +--------------------------------------------------+" -ForegroundColor Cyan
     Write-Host ""
 }
 
-# -- Sprawdz uprawnienia administratora -----------------------
 function Check-Admin {
     Write-Step "Sprawdzanie uprawnien..."
     $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -47,7 +45,6 @@ function Check-Admin {
     }
 }
 
-# -- Sprawdz i zainstaluj Python -------------------------------
 function Check-Python {
     Write-Step "Sprawdzanie Python..."
 
@@ -72,7 +69,6 @@ function Check-Python {
         try {
             winget install Python.Python.3.12 --silent --accept-package-agreements --accept-source-agreements
             Write-OK "Python zainstalowany przez winget"
-            # Odswiez PATH
             $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH","User")
             $pythonCmd = "python"
         } catch {
@@ -83,7 +79,6 @@ function Check-Python {
     return $pythonCmd
 }
 
-# -- Utworz katalog i virtualenv -------------------------------
 function Setup-Venv {
     param($PythonCmd)
     Write-Step "Tworzenie srodowiska Python..."
@@ -98,16 +93,13 @@ function Setup-Venv {
         Write-Info "Virtualenv juz istnieje - pomijam"
     }
 
-    # Aktualizuj pip
     & "$VENV_DIR\Scripts\python.exe" -m pip install --upgrade pip --quiet
     Write-OK "pip zaktualizowany"
 }
 
-# -- Zainstaluj Npcap (wymagany przez Scapy do skanowania ARP) -
 function Install-Npcap {
     Write-Step "Sprawdzanie Npcap..."
 
-    # Sprawdz czy juz zainstalowany
     $installed = Get-ItemProperty "HKLM:\SOFTWARE\WOW6432Node\Npcap" -ErrorAction SilentlyContinue
     if ($installed) {
         Write-OK "Npcap juz zainstalowany"
@@ -125,7 +117,6 @@ function Install-Npcap {
         Write-Host "  *** WAZNE - przeczytaj przed kliknieciem Next! ***" -ForegroundColor Yellow
         Write-Host "  W instalatorze Npcap zaznacz opcje:" -ForegroundColor Yellow
         Write-Host "  [x] Install Npcap in WinPcap API-compatible Mode" -ForegroundColor Cyan
-        Write-Host "  Bez tej opcji skanowanie sieci nie bedzie dzialac." -ForegroundColor Yellow
         Write-Host ""
         Read-Host "  Nacisnij Enter aby otworzyc instalator Npcap..."
         Start-Process -FilePath $npcapInstaller -Wait
@@ -138,7 +129,6 @@ function Install-Npcap {
     }
 }
 
-# -- Zainstaluj zaleznosci Python ------------------------------
 function Install-PythonDeps {
     Write-Step "Instalowanie bibliotek Python..."
 
@@ -149,37 +139,59 @@ function Install-PythonDeps {
     }
 }
 
-# -- Pobierz pliki agenta --------------------------------------
 function Download-Files {
     Write-Step "Pobieranie plikow NetGuard..."
 
     $scriptDir  = if ($PSScriptRoot) { $PSScriptRoot } else { "" }
     $localAgent = if ($scriptDir) { Join-Path $scriptDir "netguard_agent.py" } else { "" }
-    if ($localAgent -and (Test-Path $localAgent)) {
+    $localPkg   = if ($scriptDir) { Join-Path $scriptDir "netguard" } else { "" }
+    if ($localAgent -and (Test-Path $localAgent) -and $localPkg -and (Test-Path $localPkg)) {
         Copy-Item $localAgent "$NETGUARD_DIR\netguard_agent.py" -Force
+        Copy-Item -Recurse $localPkg "$NETGUARD_DIR\netguard" -Force
         $localDash = Join-Path $scriptDir "network-agent-dashboard.html"
         if (Test-Path $localDash) {
             Copy-Item $localDash "$NETGUARD_DIR\network-agent-dashboard.html" -Force
         }
-        Write-OK "Skopiowano lokalne pliki"
+        Write-OK "Skopiowano lokalne pliki modułowe"
     } else {
         try {
-            Invoke-WebRequest -Uri "$REPO_URL/netguard_agent.py" -OutFile "$NETGUARD_DIR\netguard_agent.py" -UseBasicParsing
-            Invoke-WebRequest -Uri "$REPO_URL/network-agent-dashboard.html" -OutFile "$NETGUARD_DIR\network-agent-dashboard.html" -UseBasicParsing
-            Invoke-WebRequest -Uri "$REPO_URL/netguard.ico" -OutFile "$NETGUARD_DIR\netguard.ico" -UseBasicParsing
-            Write-OK "Pobrano z GitHub"
+            $zipFile = "$env:TEMP\netguard-v1.5.0.zip"
+            Write-Info "Pobieranie NetGuard v1.5.0 (modułowy)..."
+            Invoke-WebRequest -Uri $PKG_URL -OutFile $zipFile -UseBasicParsing
+            if (Get-Command Expand-Archive -ErrorAction SilentlyContinue) {
+                Expand-Archive -Path $zipFile -DestinationPath "$env:TEMP\netguard-pkg" -Force
+                if (Test-Path "$env:TEMP\netguard-pkg\netguard-pkg-1.5.0") {
+                    Move-Item "$env:TEMP\netguard-pkg\netguard-pkg-1.5.0\*" $NETGUARD_DIR\ -Force
+                } else {
+                    Move-Item "$env:TEMP\netguard-pkg\*" $NETGUARD_DIR\ -Force
+                }
+                Remove-Item "$env:TEMP\netguard-pkg" -Recurse -Force -ErrorAction SilentlyContinue
+            } else {
+                Add-Type -AssemblyName System.IO.Compression.FileSystem
+                $zip = [System.IO.Compression.ZipFile]::OpenRead($zipFile)
+                $dest = "$env:TEMP\netguard-pkg"
+                $zip.Entries | ForEach-Object {
+                    $target = Join-Path $dest $_.FullName
+                    $dir = Split-Path $target -Parent
+                    if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
+                    if ($_.Name) { [System.IO.Compression.ZipFileExtensions]::ExtractToFile($_, $target, $true) }
+                }
+                $zip.Dispose()
+                Move-Item "$dest\netguard-pkg-1.5.0\*" $NETGUARD_DIR\ -Force
+                Remove-Item $dest -Recurse -Force -ErrorAction SilentlyContinue
+            }
+            Remove-Item $zipFile -Force -ErrorAction SilentlyContinue
+            Write-OK "Pobrano modułowy pakiet z GitHub"
         } catch {
             Write-Fail "Nie moge pobrac plikow: $_"
         }
     }
 }
 
-# -- Wizard konfiguracji - tworzy config.json -----------------
 function Run-Wizard {
     Write-Step "Konfiguracja NetGuard..."
     Write-Host ""
 
-    # Wykryj interfejs i siec przez PowerShell (dziala na Windows)
     $defaultIface = "auto"
     $defaultNet   = "192.168.1.0/24"
     try {
@@ -198,7 +210,6 @@ function Run-Wizard {
     $userEmail = Read-Host "  Podaj adres email do powiadomien (Enter aby pominac)"
     Write-Host ""
 
-    # Haslo admina dashboardu - hash SHA-256 w PowerShell
     Write-Host "  Ustaw haslo do panelu admina:" -ForegroundColor Cyan
     do {
         $pwd1 = Read-Host "  Haslo" -AsSecureString
@@ -211,7 +222,6 @@ function Run-Wizard {
     $sha256    = [System.Security.Cryptography.SHA256]::Create()
     $pwdHash   = [BitConverter]::ToString($sha256.ComputeHash([Text.Encoding]::UTF8.GetBytes($plain1))).Replace("-","").ToLower()
 
-    # Utworz config.json (format wymagany przez agenta)
     $config = @{
         network_range       = $defaultNet
         interface           = "auto"
@@ -227,7 +237,6 @@ function Run-Wizard {
     }
     $config | ConvertTo-Json -Depth 5 | Set-Content "$NETGUARD_DIR\config.json" -Encoding UTF8
 
-    # Utworz pusty netguard_devices.json
     if (-not (Test-Path "$NETGUARD_DIR\netguard_devices.json")) {
         @{ trusted_macs = @(); blocked_macs = @(); device_names = @{} } `
             | ConvertTo-Json | Set-Content "$NETGUARD_DIR\netguard_devices.json" -Encoding UTF8
@@ -238,11 +247,9 @@ function Run-Wizard {
     return @{ Network = $defaultNet; Email = $userEmail }
 }
 
-# -- Utworz skrypt startowy ------------------------------------
 function Create-Launcher {
     Write-Step "Tworzenie skryptow startowych..."
 
-    # start.bat - uruchamia agenta z dashboardem, pause trzyma okno przy bledzie
     @"
 @echo off
 title NetGuard AI
@@ -258,7 +265,6 @@ pause
 
     Write-OK "start.bat utworzony"
 
-    # Otworz port 8767 w Windows Firewall
     try {
         $ruleName = "NetGuard Dashboard (port 8767)"
         $existing = Get-NetFirewallRule -DisplayName $ruleName -ErrorAction SilentlyContinue
@@ -274,7 +280,6 @@ pause
         Write-Warn "Nie moge dodac reguly firewall - uruchom ponownie jako Administrator"
     }
 
-    # Skrot na pulpicie - target: start.bat, flaga "Run as Administrator"
     try {
         $lnkPath = "$env:USERPROFILE\Desktop\NetGuard AI.lnk"
         $WshShell = New-Object -ComObject WScript.Shell
@@ -282,9 +287,7 @@ pause
         $Shortcut.TargetPath       = "$NETGUARD_DIR\start.bat"
         $Shortcut.WorkingDirectory = $NETGUARD_DIR
         $Shortcut.Description      = "NetGuard AI - Agent Sieci Domowej"
-        $Shortcut.IconLocation     = "$NETGUARD_DIR\netguard.ico,0"
         $Shortcut.Save()
-        # Ustaw flage "Uruchom jako administrator" w pliku .lnk (bajt 0x15, bit 0x20)
         $bytes = [System.IO.File]::ReadAllBytes($lnkPath)
         $bytes[0x15] = $bytes[0x15] -bor 0x20
         [System.IO.File]::WriteAllBytes($lnkPath, $bytes)
@@ -294,7 +297,6 @@ pause
     }
 }
 
-# -- Skonfiguruj Task Scheduler (autostart) --------------------
 function Setup-TaskScheduler {
     Write-Step "Konfigurowanie autostartu (Task Scheduler)..."
 
@@ -327,11 +329,10 @@ function Setup-TaskScheduler {
         Write-OK "Task Scheduler skonfigurowany - NetGuard startuje przy logowaniu"
     } catch {
         Write-Warn "Nie moge skonfigurowac Task Scheduler: $_"
-        Write-Info "Uruchamiaj recznie przez start-admin.bat"
+        Write-Info "Uruchamiaj recznie przez start.bat"
     }
 }
 
-# -- Podsumowanie ----------------------------------------------
 function Print-Summary {
     Write-Host ""
     Write-Host "  ╔════════════════════════════════════════════════╗" -ForegroundColor Green
@@ -340,19 +341,15 @@ function Print-Summary {
     Write-Host ""
     Write-Host "  Jak uruchomic:" -ForegroundColor Cyan
     Write-Host "  Kliknij dwukrotnie: NetGuard AI (skrot na pulpicie)" -ForegroundColor Yellow
-    Write-Host "  lub uruchom: $NETGUARD_DIR\start-admin.bat" -ForegroundColor Yellow
+    Write-Host "  lub uruchom: $NETGUARD_DIR\start.bat" -ForegroundColor Yellow
     Write-Host ""
     Write-Host "  Dashboard (po uruchomieniu):" -ForegroundColor Cyan
     Write-Host "  http://localhost:8767" -ForegroundColor Yellow
-    Write-Host ""
-    Write-Host "  Jak zatrzymac NetGuarda:" -ForegroundColor Cyan
-    Write-Host "  W oknie konsoli nacisnij Ctrl+C" -ForegroundColor Yellow
     Write-Host ""
     Write-Host "  Dokumentacja: https://github.com/NetGuard-free/netguard-free" -ForegroundColor Cyan
     Write-Host ""
 }
 
-# -- GLOWNY FLOW -----------------------------------------------
 Write-Banner
 Check-Admin
 Install-Npcap

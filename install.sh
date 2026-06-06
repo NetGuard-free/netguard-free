@@ -1,18 +1,18 @@
 #!/bin/bash
 # ============================================================
-#  NetGuard — Instalator (Linux / macOS / Raspberry Pi / NanoPi)
+#  NetGuard AI — Instalator (Linux / macOS / Raspberry Pi)
+#  Wersja modułowa (Free Edition)
 #  https://github.com/NetGuard-free/netguard-free
 # ============================================================
 
 set -e
 
-NETGUARD_VERSION="1.0.0"
+NETGUARD_VERSION="1.5.0"
 NETGUARD_DIR="$HOME/netguard"
 VENV_DIR="$HOME/netguard-env"
-REPO_URL="https://raw.githubusercontent.com/NetGuard-free/netguard-free/main"
+PKG_URL="https://raw.githubusercontent.com/NetGuard-free/netguard-free/main/netguard-v1.5.0.tar.gz"
 PYTHON_MIN="3.9"
 
-# Kolory
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -29,7 +29,7 @@ print_banner() {
     echo "  ██║ ╚████║███████╗   ██║   ╚██████╔╝╚██████╔╝██║  ██║██║  ██║██████╔╝"
     echo "  ╚═╝  ╚═══╝╚══════╝   ╚═╝    ╚═════╝  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝ "
     echo -e "${NC}"
-    echo -e "  ${BLUE}Agent Sieci Domowej — wersja ${NETGUARD_VERSION}${NC}"
+    echo -e "  ${BLUE}Agent Sieci Domowej — wersja ${NETGUARD_VERSION} (Free Edition)${NC}"
     echo -e "  ${CYAN}Instalator dla Linux / macOS / Raspberry Pi${NC}"
     echo ""
 }
@@ -40,7 +40,6 @@ warn() { echo -e "  ${YELLOW}⚠${NC} $1"; }
 fail() { echo -e "  ${RED}✗${NC} $1"; exit 1; }
 step() { echo -e "\n${CYAN}▶ $1${NC}"; }
 
-# ── Wykryj system operacyjny ─────────────────────────────────
 detect_os() {
     if [[ "$OSTYPE" == "darwin"* ]]; then
         OS="macos"
@@ -57,7 +56,6 @@ detect_os() {
     fi
 }
 
-# ── Sprawdź Python ───────────────────────────────────────────
 check_python() {
     step "Sprawdzanie Python..."
 
@@ -74,7 +72,6 @@ check_python() {
         fi
     done
 
-    # Zainstaluj Python jeśli brak
     warn "Python $PYTHON_MIN+ nie znaleziony. Instaluję..."
     if [[ "$OS" == "linux" ]]; then
         if command -v apt-get &>/dev/null; then
@@ -96,7 +93,6 @@ check_python() {
     PYTHON_CMD=python3
 }
 
-# ── Sprawdź uprawnienia root ─────────────────────────────────
 check_root() {
     step "Sprawdzanie uprawnień..."
     if [[ $EUID -ne 0 ]]; then
@@ -109,7 +105,6 @@ check_root() {
     fi
 }
 
-# ── Zainstaluj zależności systemowe ─────────────────────────
 install_system_deps() {
     step "Instalowanie zależności systemowych..."
 
@@ -137,7 +132,6 @@ install_system_deps() {
     fi
 }
 
-# ── Utwórz katalog i virtualenv ──────────────────────────────
 setup_venv() {
     step "Tworzenie środowiska Python..."
 
@@ -151,15 +145,12 @@ setup_venv() {
         info "Virtualenv już istnieje — pomijam"
     fi
 
-    # Aktywuj venv
     source "$VENV_DIR/bin/activate"
 
-    # Aktualizuj pip
     pip install --upgrade pip --quiet
     ok "pip zaktualizowany"
 }
 
-# ── Zainstaluj zależności Python ─────────────────────────────
 install_python_deps() {
     step "Instalowanie bibliotek Python..."
 
@@ -179,29 +170,24 @@ install_python_deps() {
     ok "ollama — lokalny LLM (opcjonalny)"
 }
 
-# ── Pobierz pliki agenta ─────────────────────────────────────
 download_files() {
     step "Pobieranie plików NetGuard..."
 
-    # Jeśli uruchamiamy lokalnie (development) — kopiuj z bieżącego katalogu
-    if [[ -f "$(dirname "$0")/netguard_agent.py" ]]; then
+    if [[ -f "$(dirname "$0")/netguard_agent.py" && -d "$(dirname "$0")/netguard" ]]; then
         cp "$(dirname "$0")/netguard_agent.py" "$NETGUARD_DIR/"
+        cp -r "$(dirname "$0")/netguard" "$NETGUARD_DIR/"
         cp "$(dirname "$0")/network-agent-dashboard.html" "$NETGUARD_DIR/" 2>/dev/null || true
-        ok "Skopiowano lokalne pliki"
+        ok "Skopiowano lokalne pliki modułowe"
     else
-        # Pobierz z GitHub
-        curl -sSL "$REPO_URL/netguard_agent.py" -o "$NETGUARD_DIR/netguard_agent.py"
-        curl -sSL "$REPO_URL/network-agent-dashboard.html" -o "$NETGUARD_DIR/network-agent-dashboard.html"
-        ok "Pobrano z GitHub"
+        curl -sSL "$PKG_URL" | tar xz --strip-components=1 -C "$NETGUARD_DIR"
+        ok "Pobrano modułowy pakiet z GitHub"
     fi
 }
 
-# ── Wizard konfiguracji ──────────────────────────────────────
 run_wizard() {
     step "Konfiguracja NetGuard..."
     echo ""
 
-    # Wykryj sieć
     if command -v ip &>/dev/null; then
         DEFAULT_IFACE=$(ip route show default 2>/dev/null | awk '/default/ {print $5}' | head -1)
         DEFAULT_NET=$(ip route show 2>/dev/null | grep -v default | grep "$DEFAULT_IFACE" | awk '{print $1}' | head -1)
@@ -217,11 +203,9 @@ run_wizard() {
     echo -e "  Wykryto sieć:      ${CYAN}$DEFAULT_NET${NC}"
     echo ""
 
-    # Email
     read -p "  Podaj adres email do powiadomień (Enter aby pominąć): " USER_EMAIL
     echo ""
 
-    # Zapisz config do pliku
     cat > "$NETGUARD_DIR/.netguard.conf" << EOF
 NETGUARD_INTERFACE=$DEFAULT_IFACE
 NETGUARD_NETWORK=$DEFAULT_NET
@@ -233,13 +217,11 @@ EOF
     ok "Konfiguracja zapisana w $NETGUARD_DIR/.netguard.conf"
 }
 
-# ── Utwórz skrypt startowy ───────────────────────────────────
 create_launcher() {
     step "Tworzenie skryptu startowego..."
 
     cat > "$NETGUARD_DIR/start.sh" << 'LAUNCHER'
 #!/bin/bash
-# NetGuard AI — skrypt startowy
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV="$HOME/netguard-env"
 
@@ -255,7 +237,6 @@ LAUNCHER
     chmod +x "$NETGUARD_DIR/start.sh"
     ok "start.sh"
 
-    # Skrót .desktop dla Linux (menu aplikacji i pulpit)
     if [[ "$OS" == "linux" ]]; then
         DESKTOP_FILE="$HOME/.local/share/applications/netguard.desktop"
         mkdir -p "$HOME/.local/share/applications"
@@ -273,7 +254,6 @@ EOF
         chmod +x "$DESKTOP_FILE"
         ok "Skrót w menu aplikacji (NetGuard AI)"
 
-        # Skrót na pulpicie jeśli istnieje katalog Desktop
         for DESKTOP_DIR in "$HOME/Desktop" "$HOME/Pulpit" "$HOME/Biurko"; do
             if [[ -d "$DESKTOP_DIR" ]]; then
                 cp "$DESKTOP_FILE" "$DESKTOP_DIR/netguard.desktop"
@@ -285,7 +265,6 @@ EOF
     fi
 }
 
-# ── Skonfiguruj systemd (autostart) ─────────────────────────
 setup_systemd() {
     if [[ "$OS" != "linux" ]] || ! command -v systemctl &>/dev/null; then
         return
@@ -318,7 +297,6 @@ EOF
     ok "NetGuard będzie startował automatycznie po restarcie"
 }
 
-# ── Launchd dla macOS ────────────────────────────────────────
 setup_launchd() {
     if [[ "$OS" != "macos" ]]; then return; fi
 
@@ -355,7 +333,6 @@ EOF
     ok "Launchd skonfigurowany"
 }
 
-# ── Podsumowanie ─────────────────────────────────────────────
 print_summary() {
     echo ""
     echo -e "${GREEN}╔════════════════════════════════════════════════╗${NC}"
@@ -379,7 +356,6 @@ print_summary() {
     echo ""
 }
 
-# ── GŁÓWNY FLOW ──────────────────────────────────────────────
 main() {
     clear
     print_banner
