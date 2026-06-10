@@ -191,7 +191,10 @@ run_wizard() {
         DEFAULT_NET=$(ip route show 2>/dev/null | grep -v default | grep "$DEFAULT_IFACE" | awk '{print $1}' | head -1)
     elif [[ "$OS" == "macos" ]]; then
         DEFAULT_IFACE=$(route -n get default 2>/dev/null | awk '/interface:/ {print $2}')
-        DEFAULT_NET="192.168.1.0/24"
+        if [[ -n "$DEFAULT_IFACE" ]]; then
+            _IP=$(ipconfig getifaddr "$DEFAULT_IFACE" 2>/dev/null)
+            [[ -n "$_IP" ]] && DEFAULT_NET="${_IP%.*}.0/24"
+        fi
     fi
 
     DEFAULT_IFACE=${DEFAULT_IFACE:-"eth0"}
@@ -201,17 +204,23 @@ run_wizard() {
     echo -e "  Wykryto sieć:      ${CYAN}$DEFAULT_NET${NC}"
     echo ""
 
-    read -p "  Podaj adres email do powiadomień (Enter aby pominąć): " USER_EMAIL
+    # Gdy skrypt jest pipowany przez curl, stdin to pipe a nie terminal —
+    # przekierowanie z /dev/tty pozwala normalnie czytać wejście użytkownika
+    local TTY_IN="/dev/stdin"
+    [[ -e /dev/tty ]] && TTY_IN="/dev/tty"
+
+    read -p "  Podaj adres email do powiadomień (Enter aby pominąć): " USER_EMAIL <"$TTY_IN"
     echo ""
 
     echo -e "  Ustaw hasło do panelu admina:"
     while true; do
-        read -s -p "  Hasło: " PWD1; echo ""
-        read -s -p "  Powtórz hasło: " PWD2; echo ""
+        read -s -p "  Hasło: " PWD1 <"$TTY_IN"; echo ""
+        read -s -p "  Powtórz hasło: " PWD2 <"$TTY_IN"; echo ""
         [[ "$PWD1" == "$PWD2" ]] && break
         warn "Hasła nie są identyczne. Spróbuj ponownie."
     done
-    PWD_HASH=$(echo -n "$PWD1" | sha256sum | awk '{print $1}')
+    # sha256sum istnieje na Linux, shasum na macOS — używamy Python jako wspólny mianownik
+    PWD_HASH=$($PYTHON_CMD -c "import hashlib,sys; print(hashlib.sha256(sys.argv[1].encode()).hexdigest())" "$PWD1")
 
     cat > "$NETGUARD_DIR/config.json" << EOF
 {
@@ -350,7 +359,9 @@ setup_launchd() {
 </dict>
 </plist>
 EOF
-    launchctl load "$PLIST" 2>/dev/null || true
+    # macOS Ventura+ używa bootstrap zamiast load
+    launchctl bootstrap "gui/$(id -u)" "$PLIST" 2>/dev/null \
+        || launchctl load "$PLIST" 2>/dev/null || true
     ok "Launchd skonfigurowany"
 }
 
