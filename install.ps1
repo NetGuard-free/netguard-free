@@ -139,6 +139,15 @@ function Install-PythonDeps {
     }
 }
 
+function Stop-OldAgent {
+    Write-Step "Zatrzymywanie starego procesu NetGuard..."
+    Get-WmiObject Win32_Process -Filter "Name like 'python%'" -ErrorAction SilentlyContinue | Where-Object {
+        $_.CommandLine -match "netguard_agent"
+    } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+    Start-Sleep -Seconds 2
+    Write-OK "Stary proces zakonczony"
+}
+
 function Download-Files {
     Write-Step "Pobieranie plikow NetGuard..."
 
@@ -368,6 +377,7 @@ Install-Npcap
 $pythonCmd = Check-Python
 Setup-Venv -PythonCmd $pythonCmd
 Install-PythonDeps
+Stop-OldAgent
 Download-Files
 $config = Run-Wizard
 Create-Launcher
