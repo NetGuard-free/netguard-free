@@ -255,17 +255,16 @@ EOF
 create_launcher() {
     step "Tworzenie skryptu startowego..."
 
-    cat > "$NETGUARD_DIR/start.sh" << 'LAUNCHER'
+    cat > "$NETGUARD_DIR/start.sh" << LAUNCHER
 #!/bin/bash
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VENV="$HOME/netguard-env"
+SCRIPT_DIR="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
 
-if [[ $EUID -ne 0 ]]; then
-    exec sudo bash "$0" "$@"
+if [[ \$EUID -ne 0 ]]; then
+    exec sudo bash "\$0" "\$@"
 fi
 
-cd "$SCRIPT_DIR"
-exec "$VENV/bin/python3" netguard_agent.py --dashboard "$@"
+cd "\$SCRIPT_DIR"
+exec "$VENV_DIR/bin/python3" netguard_agent.py --dashboard "\$@"
 LAUNCHER
 
     chmod +x "$NETGUARD_DIR/start.sh"
