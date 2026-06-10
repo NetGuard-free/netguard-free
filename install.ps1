@@ -161,11 +161,13 @@ function Download-Files {
             if (Get-Command Expand-Archive -ErrorAction SilentlyContinue) {
                 Expand-Archive -Path $zipFile -DestinationPath "$env:TEMP\netguard-pkg" -Force
                 $pkgRoot = "$env:TEMP\netguard-pkg"
+                $hasAgent = Test-Path (Join-Path $pkgRoot "netguard_agent.py")
                 $subdirs = Get-ChildItem -Path $pkgRoot -Directory
-                if ($subdirs.Count -eq 1) {
-                    # zip ma jeden katalog nadrzedny (np. netguard-free/) — wyciagnij jego zawartosc
+                if (-not $hasAgent -and $subdirs.Count -eq 1) {
+                    # Stary zip z jednym katalogiem nadrzednym (np. netguard-free/)
                     Move-Item "$($subdirs[0].FullName)\*" $NETGUARD_DIR\ -Force
                 } else {
+                    # Nowy plaski zip — pliki na glownym poziomie
                     Move-Item "$pkgRoot\*" $NETGUARD_DIR\ -Force
                 }
                 Remove-Item "$env:TEMP\netguard-pkg" -Recurse -Force -ErrorAction SilentlyContinue
@@ -180,8 +182,9 @@ function Download-Files {
                     if ($_.Name) { [System.IO.Compression.ZipFileExtensions]::ExtractToFile($_, $target, $true) }
                 }
                 $zip.Dispose()
+                $hasAgent = Test-Path (Join-Path $dest "netguard_agent.py")
                 $subdirs = Get-ChildItem -Path $dest -Directory
-                if ($subdirs.Count -eq 1) {
+                if (-not $hasAgent -and $subdirs.Count -eq 1) {
                     Move-Item "$($subdirs[0].FullName)\*" $NETGUARD_DIR\ -Force
                 } else {
                     Move-Item "$dest\*" $NETGUARD_DIR\ -Force
