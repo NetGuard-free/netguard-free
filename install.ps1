@@ -15,7 +15,7 @@ $NETGUARD_VERSION = "1.5.0"
 $NETGUARD_DIR = "$env:USERPROFILE\netguard"
 $VENV_DIR = "$env:USERPROFILE\netguard-env"
 $PYTHON_MIN = "3.9"
-$PKG_URL = "https://raw.githubusercontent.com/NetGuard-free/netguard-free/main/netguard-v1.5.0.zip"
+$PKG_URL = "https://github.com/NetGuard-free/netguard-free/archive/refs/heads/main.zip"
 
 function Write-OK    { param($msg) Write-Host "  [OK] $msg" -ForegroundColor Green }
 function Write-Info  { param($msg) Write-Host "  [i]  $msg" -ForegroundColor Cyan }
@@ -164,8 +164,8 @@ function Download-Files {
         Write-OK "Skopiowano lokalne pliki modułowe"
     } else {
         try {
-            $zipFile = "$env:TEMP\netguard-v1.5.0.zip"
-            Write-Info "Pobieranie NetGuard v1.5.0 (modułowy)..."
+            $zipFile = "$env:TEMP\netguard-latest.zip"
+            Write-Info "Pobieranie NetGuard $NETGUARD_VERSION (modułowy)..."
             Invoke-WebRequest -Uri $PKG_URL -OutFile $zipFile -UseBasicParsing
             if (Get-Command Expand-Archive -ErrorAction SilentlyContinue) {
                 Expand-Archive -Path $zipFile -DestinationPath "$env:TEMP\netguard-pkg" -Force

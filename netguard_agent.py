@@ -472,10 +472,27 @@ class NetworkScanner:
                 pass
             return 'Ethernet'
 
+    def _apply_limit(self, devices: dict) -> dict:
+        """Ogranicza listę urządzeń do FREE_LIMITS dla planu Free."""
+        if IS_HOME or len(devices) <= FREE_LIMITS["max_devices"]:
+            return devices
+        trusted = {m: d for m, d in devices.items()
+                   if d.get("tag") == "trusted" or d.get("is_host")}
+        others  = {m: d for m, d in devices.items()
+                   if m not in trusted}
+        allowed = FREE_LIMITS["max_devices"] - len(trusted)
+        trimmed = dict(list(others.items())[:max(0, allowed)])
+        result  = {**trusted, **trimmed}
+        cprint("WARN",
+            f"Plan Free: pokazuję {len(result)} z {len(devices)} urządzeń",
+            "Przejdź na Home aby monitorować bez limitu — netguardhome.pl")
+        return result
+
     def scan(self) -> dict:
         """Skanuj sieć przez ARP i zwróć listę urządzeń"""
         if not SCAPY_AVAILABLE:
-            return self._fallback_scan()
+            self.active_devices = self._apply_limit(self._fallback_scan())
+            return self.active_devices
 
         iface = self.interface if self.interface and self.interface != 'auto' else self.get_interface()
         cprint("INFO", f"Skanowanie sieci {self.network} przez {iface}...")
@@ -487,7 +504,8 @@ class NetworkScanner:
             result = srp(packet, timeout=3, iface=iface, verbose=False)[0]
         except Exception as e:
             cprint("WARN", f"Błąd skanowania ARP: {e}")
-            return self._fallback_scan()
+            self.active_devices = self._apply_limit(self._fallback_scan())
+            return self.active_devices
 
         devices = {}
         for sent, received in result:
@@ -526,25 +544,10 @@ class NetworkScanner:
             devices[host_mac]["tag"] = "trusted"
             devices[host_mac]["hostname"] = CONFIG["device_names"].get(host_mac) or socket.gethostname()
 
-        self.active_devices = devices
+        self.active_devices = self._apply_limit(devices)
 
-        # Limit urządzeń dla planu Free
-        if not IS_HOME and len(devices) > FREE_LIMITS["max_devices"]:
-            # Zachowaj zaufane + własny komputer, obetnij resztę
-            trusted = {m: d for m, d in devices.items()
-                      if d.get("tag") == "trusted" or d.get("is_host")}
-            others  = {m: d for m, d in devices.items()
-                      if m not in trusted}
-            allowed = FREE_LIMITS["max_devices"] - len(trusted)
-            trimmed = dict(list(others.items())[:max(0, allowed)])
-            devices = {**trusted, **trimmed}
-            self.active_devices = devices
-            cprint("WARN",
-                f"Plan Free: pokazuję {FREE_LIMITS['max_devices']} z {len(devices)} urządzeń",
-                "Przejdź na Home aby monitorować bez limitu — netguardhome.pl")
-
-        cprint("OK", f"Znaleziono {len(devices)} urządzeń w sieci")
-        return devices
+        cprint("OK", f"Znaleziono {len(self.active_devices)} urządzeń w sieci")
+        return self.active_devices
 
     def _get_own_ip(self, iface: str) -> str:
         """Pobierz własny adres IP na danym interfejsie"""

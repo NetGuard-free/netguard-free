@@ -10,7 +10,7 @@ set -e
 NETGUARD_VERSION="1.5.0"
 NETGUARD_DIR="$HOME/netguard"
 VENV_DIR="$HOME/netguard-env"
-PKG_URL="https://raw.githubusercontent.com/NetGuard-free/netguard-free/main/netguard-v1.5.0.tar.gz"
+PKG_URL="https://github.com/NetGuard-free/netguard-free/archive/refs/heads/main.tar.gz"
 PYTHON_MIN="3.9"
 
 RED='\033[0;31m'
@@ -206,15 +206,38 @@ run_wizard() {
     read -p "  Podaj adres email do powiadomień (Enter aby pominąć): " USER_EMAIL
     echo ""
 
-    cat > "$NETGUARD_DIR/.netguard.conf" << EOF
-NETGUARD_INTERFACE=$DEFAULT_IFACE
-NETGUARD_NETWORK=$DEFAULT_NET
-NETGUARD_EMAIL=$USER_EMAIL
-NETGUARD_PORT=8767
-NETGUARD_VENV=$VENV_DIR
-NETGUARD_DIR=$NETGUARD_DIR
+    echo -e "  Ustaw hasło do panelu admina:"
+    while true; do
+        read -s -p "  Hasło: " PWD1; echo ""
+        read -s -p "  Powtórz hasło: " PWD2; echo ""
+        [[ "$PWD1" == "$PWD2" ]] && break
+        warn "Hasła nie są identyczne. Spróbuj ponownie."
+    done
+    PWD_HASH=$(echo -n "$PWD1" | sha256sum | awk '{print $1}')
+
+    cat > "$NETGUARD_DIR/config.json" << EOF
+{
+  "network_range": "$DEFAULT_NET",
+  "interface": "$DEFAULT_IFACE",
+  "alert_email": "$USER_EMAIL",
+  "dashboard_port": 8767,
+  "admin_password_hash": "$PWD_HASH",
+  "packet_capture": true,
+  "smtp": {
+    "host": "smtp.gmail.com",
+    "port": 587,
+    "user": "$USER_EMAIL",
+    "password": ""
+  }
+}
 EOF
-    ok "Konfiguracja zapisana w $NETGUARD_DIR/.netguard.conf"
+
+    if [[ ! -f "$NETGUARD_DIR/netguard_devices.json" ]]; then
+        echo '{"trusted_macs": [], "blocked_macs": [], "device_names": {}}' \
+            > "$NETGUARD_DIR/netguard_devices.json"
+    fi
+
+    ok "Konfiguracja zapisana w $NETGUARD_DIR/config.json"
 }
 
 create_launcher() {
@@ -280,6 +303,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
+User=root
 ExecStart=$VENV_DIR/bin/python3 $NETGUARD_DIR/netguard_agent.py --dashboard
 WorkingDirectory=$NETGUARD_DIR
 Restart=always
