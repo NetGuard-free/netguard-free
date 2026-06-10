@@ -1,16 +1,23 @@
 <!DOCTYPE html>
 <!-- 
   NETGUARD — Lokalny Agent Sieci Domowej 
-  Wersja: Free Edition (limit 25 urządzeń)
+  Wersja: Free Edition (limit 5 urządzeń)
   Licencja: Business Source License 1.1 (BSL)      
   Autor: Arkadiusz Dragun (NetGuardHome)
 -->
 <html lang="pl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>NetGuard — Agent Sieci Domowej</title>
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#00d4ff">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="NetGuard">
+<link rel="apple-touch-icon" href="/icon-192.png">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
 
@@ -71,20 +78,9 @@
   }
 
   .logo-icon {
-    width: 36px; height: 36px;
-    border: 2px solid var(--accent);
-    border-radius: 8px;
+    width: 44px; height: 50px;
     display: flex; align-items: center; justify-content: center;
     position: relative;
-    overflow: hidden;
-  }
-
-  .logo-icon::before {
-    content: '';
-    position: absolute;
-    width: 18px; height: 18px;
-    background: radial-gradient(circle, var(--accent) 0%, transparent 70%);
-    animation: pulse 2s ease-in-out infinite;
   }
 
   @keyframes pulse {
@@ -92,7 +88,26 @@
     50% { opacity: 1; transform: scale(1.2); }
   }
 
-  .logo-svg { width: 20px; height: 20px; color: var(--accent); position: relative; z-index: 1; }
+  @keyframes ring-scan {
+    0%, 100% { opacity: 0.18; }
+    50% { opacity: 0.45; }
+  }
+
+  .logo-ring-outer { animation: ring-scan 3s ease-in-out infinite; }
+
+  .logo-svg {
+    width: 44px; height: 50px; position: relative; z-index: 1;
+    filter: drop-shadow(0 0 6px rgba(0,200,240,0.5)) drop-shadow(0 0 2px rgba(0,232,135,0.3));
+  }
+
+  .ai-chat { position: relative; }
+  .ai-watermark {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 200px; height: 230px;
+    opacity: 0.08; pointer-events: none; z-index: 0;
+  }
+  .chat-messages, .chat-input-area { position: relative; z-index: 1; }
 
   .logo-text h1 { font-family: var(--mono); font-size: 16px; font-weight: 600; color: var(--accent); letter-spacing: 2px; }
   .logo-text p { font-size: 11px; color: var(--text2); letter-spacing: 1px; }
@@ -132,7 +147,16 @@
     border-right: 1px solid var(--border);
     padding: 20px 0;
     grid-row: 1 / 3;
+    display: flex; flex-direction: column;
   }
+
+  .sidebar-logo {
+    margin-top: auto;
+    padding: 24px 12px 30%;
+    display: flex; justify-content: center; align-items: flex-end;
+    opacity: 0.45;
+  }
+  .sidebar-logo svg { width: 120px; height: 138px; }
 
   .nav-section { padding: 0 12px 20px; }
   .nav-label { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 2px; padding: 0 8px 8px; text-transform: uppercase; }
@@ -262,6 +286,8 @@
   .panel-action:hover { background: rgba(0,212,255,0.1); }
 
   .panel-body { padding: 14px 18px; }
+  .dns-row { transition: background 0.15s; border-radius: 4px; }
+  .dns-row:hover { background: rgba(255,255,255,0.06); }
 
   /* Device list */
   .device-item {
@@ -352,6 +378,9 @@
   }
 
   canvas { width: 100% !important; }
+  @media (max-width: 600px) {
+    #traffic-stats-row { grid-template-columns: repeat(2, 1fr) !important; }
+  }
 
   /* Threat map */
   .threat-grid {
@@ -534,6 +563,47 @@
     .sidebar { display: none; }
     .grid-2, .grid-3 { grid-template-columns: 1fr; }
     .stats-strip { flex-wrap: wrap; }
+    .main-content { padding-bottom: 72px; } /* miejsce na mobile nav */
+  }
+
+  /* ── Mobile bottom navigation bar ───────────────────────── */
+  .mobile-nav {
+    display: none;
+  }
+  @media (max-width: 900px) {
+    .mobile-nav {
+      display: flex;
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+      z-index: 1000;
+      height: 60px;
+      padding: 0;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    .mobile-nav-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      font-family: var(--mono);
+      font-size: 9px;
+      font-weight: 600;
+      color: var(--text2);
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      border: none;
+      background: none;
+      padding: 8px 4px;
+      transition: color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .mobile-nav-item svg { width: 20px; height: 20px; }
+    .mobile-nav-item.active { color: var(--accent); }
+    .mobile-nav-item:active { opacity: 0.7; }
   }
 
   /* ── MODALS ────────────────────────────────────────────── */
@@ -665,8 +735,18 @@
     padding: 2px 7px; border-radius: 4px; letter-spacing: 0.5px;
   }
   .conn-wifi   { background: rgba(0,212,255,0.12); color: var(--accent); border: 1px solid rgba(0,212,255,0.25); }
-  .conn-wired  { background: rgba(0,200,100,0.12); color: var(--accent2); border: 1px solid rgba(0,200,100,0.25); }
+  .conn-wired  { background: rgba(167,139,250,0.12); color: #a78bfa; border: 1px solid rgba(167,139,250,0.28); }
   .conn-unknown{ background: rgba(255,255,255,0.05); color: var(--text3); border: 1px solid var(--border); }
+  /* Przyciski przełączania WiFi/Kabel w modalu */
+  .conn-toggle {
+    font-family: var(--mono); font-size: 11px; font-weight: 600;
+    padding: 4px 12px; border-radius: 5px; cursor: pointer;
+    border: 1px solid var(--border); background: rgba(255,255,255,0.04);
+    color: var(--text2); transition: all 0.15s;
+  }
+  .conn-toggle:hover { border-color: var(--accent); color: var(--accent); }
+  .conn-toggle.active-wifi  { background: rgba(0,212,255,0.15); color: var(--accent);  border-color: rgba(0,212,255,0.4); }
+  .conn-toggle.active-wired { background: rgba(167,139,250,0.18); color: #a78bfa; border-color: rgba(167,139,250,0.5); }
 
   /* Zalecenia inline w modalu alertu */
   .rec-inline-title {
@@ -724,23 +804,37 @@
 <header>
   <div class="logo">
     <div class="logo-icon">
-      <svg class="logo-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      <svg class="logo-svg" viewBox="150 60 380 430" xmlns="http://www.w3.org/2000/svg">
+        <circle class="logo-ring-outer" cx="340" cy="270" r="220" fill="none" stroke="#00c8f0" stroke-width="2"/>
+        <circle cx="340" cy="270" r="190" fill="none" stroke="#00c8f0" stroke-width="2" opacity="0.40"/>
+        <path d="M340 90 L470 135 L470 255 C470 340 410 410 340 440 C270 410 210 340 210 255 L210 135 Z" fill="#0d1220" stroke="#00c8f0" stroke-width="3.5"/>
+        <path d="M340 108 L455 149 L455 255 C455 333 399 399 340 427 C281 399 225 333 225 255 L225 149 Z" fill="none" stroke="#00c8f0" stroke-width="1.5" opacity="0.45"/>
+        <polyline points="275,270 320,315 415,215" fill="none" stroke="#00e887" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" opacity="0.25"/>
+        <polyline points="275,270 320,315 415,215" fill="none" stroke="#00e887" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     </div>
     <div class="logo-text">
-      <h1>NETGUARD <span style="font-size: 10px; background: rgba(0, 200, 240, 0.2); color: #00c8f0; padding: 3px 6px; border-radius: 4px; vertical-align: middle; margin-left: 10px;">FREE EDITION</span></h1>
-      <p>Agent Sieci Domowej — <a href="https://netguardhome.pl" target="_blank" style="color: var(--text3); border-bottom: 1px dotted var(--text3); text-decoration: none;">odblokuj limit urządzeń w NetGuard Home</a></p>
+      <h1>NETGUARD</h1>
+      <p>Agent Sieci Domowej — tryb lokalny</p>
     </div>
   </div>
   <div class="header-status">
     <div class="status-badge ok" id="overall-status">
       <span class="dot"></span>
-      <span id="status-text">SIEĆ CHRONIONA</span>
+      <span id="status-text">MONITORING AKTYWNY</span>
     </div>
     <div class="clock" id="clock">--:--:--</div>
   </div>
 </header>
+
+<!-- DEMO BANNER — widoczny tylko w wersji Free -->
+<div id="demo-banner" style="display:none;background:linear-gradient(90deg,rgba(255,170,0,0.12),rgba(255,170,0,0.05));border-bottom:1px solid rgba(255,170,0,0.3);padding:8px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+  <div style="font-family:var(--mono);font-size:12px;color:var(--warn);display:flex;align-items:center;gap:10px;">
+    <span>⚠</span>
+    <span>WERSJA DEMO — limit <strong id="demo-dev-count">?/5</strong> urządzeń · bez AI Chat · alerty tylko lokalne</span>
+  </div>
+  <a href="https://netguardhome.pl/#cennik" target="_blank" style="font-family:var(--mono);font-size:11px;color:var(--accent);border:1px solid rgba(0,212,255,0.4);padding:4px 12px;border-radius:4px;white-space:nowrap;text-decoration:none;">Przejdź na Home →</a>
+</div>
 
 <div class="layout">
   <!-- Sidebar -->
@@ -770,7 +864,12 @@
       </div>
       <div class="nav-item" onclick="showPage('firewall')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-        Reguły Firewall
+        Kontrola dostępu
+      </div>
+      <div class="nav-item" onclick="showPage('parental')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.87"/></svg>
+        Kontrola rodzicielska
+        <span class="nav-badge warn" id="parental-badge" style="display:none;"></span>
       </div>
       <div class="nav-item" onclick="showPage('traffic')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
@@ -787,6 +886,16 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
         Instalacja lokalna
       </div>
+    </div>
+    <div class="sidebar-logo">
+      <svg viewBox="150 60 380 430" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="340" cy="270" r="220" fill="none" stroke="#00c8f0" stroke-width="3"/>
+        <circle cx="340" cy="270" r="190" fill="none" stroke="#00c8f0" stroke-width="3"/>
+        <path d="M340 90 L470 135 L470 255 C470 340 410 410 340 440 C270 410 210 340 210 255 L210 135 Z" fill="#0d1220" stroke="#00c8f0" stroke-width="5"/>
+        <path d="M340 108 L455 149 L455 255 C455 333 399 399 340 427 C281 399 225 333 225 255 L225 149 Z" fill="none" stroke="#00c8f0" stroke-width="2"/>
+        <polyline points="275,270 320,315 415,215" fill="none" stroke="#00e887" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" opacity="0.25"/>
+        <polyline points="275,270 320,315 415,215" fill="none" stroke="#00e887" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
     </div>
   </nav>
 
@@ -805,16 +914,26 @@
         <div class="stat-value" id="stat-new">—</div>
         <div class="stat-sub">oczekuje weryfikacji →</div>
       </div>
-      <div class="stat-card danger" onclick="showPage('alerts')" style="cursor:pointer;" title="Przejdź do alertów">
+      <div class="stat-card danger" onclick="showAlertsPage('24h')" style="cursor:pointer;" title="Aktywne alerty z ostatnich 24h">
         <div class="stat-label">Aktywne alerty</div>
         <div class="stat-value" id="stat-alerts">—</div>
-        <div class="stat-sub">wymagają uwagi →</div>
+        <div class="stat-sub">ostatnie 24h →</div>
       </div>
-      <div class="stat-card green" onclick="showPage('alerts')" style="cursor:pointer;" title="Przejdź do dziennika zdarzeń">
+      <div class="stat-card green" onclick="showAlertsPage('all')" style="cursor:pointer;" title="Przejdź do pełnego dziennika zdarzeń">
         <div class="stat-label">Zdarzenia łącznie</div>
         <div class="stat-value" id="stat-blocked">—</div>
         <div class="stat-sub">w bazie agenta →</div>
       </div>
+    </div>
+
+    <!-- System Health Strip -->
+    <div id="system-strip" class="system-strip" style="display:none; gap:16px; padding:8px 24px; background:var(--bg2); border-bottom:1px solid var(--border); font-size:11px; font-family:var(--mono); color:var(--text2); align-items:center; flex-wrap:wrap;">
+      <span style="display:inline-flex;align-items:center;gap:3px;">🌡 <span id="sys-temp" style="color:var(--text1);font-weight:600;">—°C</span></span>
+      <span style="display:inline-flex;align-items:center;gap:3px;color:var(--text2);">⚡ CPU <span id="sys-cpu" style="color:var(--accent2);font-weight:600;">—%</span></span>
+      <span style="display:inline-flex;align-items:center;gap:3px;">💾 RAM <span id="sys-ram" style="color:var(--text1);font-weight:600;">—</span></span>
+      <span style="display:inline-flex;align-items:center;gap:3px;">📡 ↓<span id="sys-wan-down" style="color:var(--accent);font-weight:600;">—</span> ↑<span id="sys-wan-up" style="color:var(--accent2);font-weight:600;">—</span></span>
+      <span style="display:inline-flex;align-items:center;gap:3px;">🛡 <span id="sys-ids" style="font-weight:600;">—</span></span>
+      <span style="display:inline-flex;align-items:center;gap:3px;">⏱ <span id="sys-uptime" style="color:var(--text1);">—</span></span>
     </div>
 
     <div class="main" id="main-content">
@@ -860,9 +979,9 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
               RUCH SIECIOWY — OSTATNIA GODZINA
             </div>
-            <div style="font-family: var(--mono); font-size: 11px; color: var(--text2);">
-              <span style="color: var(--accent);">↓ 142 Mbps</span> &nbsp;
-              <span style="color: var(--accent2);">↑ 28 Mbps</span>
+            <div id="traffic-overview-stats" style="font-family: var(--mono); font-size: 11px; color: var(--text2);">
+              <span style="color: var(--accent);">↓ —</span> &nbsp;
+              <span style="color: var(--accent2);">↑ —</span>
             </div>
           </div>
           <div class="panel-body">
@@ -873,7 +992,7 @@
         </div>
 
         <!-- Threats -->
-        <div class="section-title">WYKRYTE ZAGROŻENIA — STATUS OCHRONY</div>
+        <div class="section-title">WYKRYTE ZAGROŻENIA — MONITORING</div>
         <div class="threat-grid" id="threat-overview"></div>
 
       </div>
@@ -885,6 +1004,7 @@
           <button class="tab active" onclick="filterDevices('all', this)">Wszystkie</button>
           <button class="tab" onclick="filterDevices('online', this)">Online</button>
           <button class="tab" onclick="filterDevices('new', this)">Nowe</button>
+          <button class="tab" onclick="filterDevices('child', this)">🧒 Ochrona</button>
           <button class="tab" onclick="filterDevices('suspicious', this)">Podejrzane</button>
           <button class="tab" onclick="filterDevices('blocked', this)">Zablokowane</button>
           <button class="tab" onclick="filterDevices('wifi', this)">📶 WiFi</button>
@@ -893,13 +1013,22 @@
         <div class="panel">
           <div class="panel-body" id="devices-full" style="padding: 0 18px;"></div>
         </div>
+        <!-- CHILD STATS przeniesione do strony Kontrola rodzicielska -->
+        <div id="child-stats-panel" style="display:none;"></div>
       </div>
 
       <!-- ALERTS PAGE -->
       <div class="page" id="page-alerts">
         <div class="section-title">DZIENNIK ALERTÓW</div>
         <div class="panel">
-          <div class="panel-body" id="alerts-full"></div>
+          <div class="panel-header">
+            <div class="panel-title" id="alerts-page-title">WSZYSTKIE ZDARZENIA</div>
+            <div style="display:flex;gap:6px;">
+              <button class="panel-action" id="alerts-filter-24h" onclick="setAlertsFilter('24h')">OSTATNIE 24H</button>
+              <button class="panel-action" id="alerts-filter-all" onclick="setAlertsFilter('all')">WSZYSTKIE</button>
+            </div>
+          </div>
+          <div class="panel-body" id="alerts-full" style="max-height: calc(100vh - 260px); overflow-y: auto;"></div>
         </div>
       </div>
 
@@ -916,40 +1045,130 @@
             <div class="panel-body" id="threats-history"></div>
           </div>
         </div>
-        <div class="panel">
-          <div class="panel-header"><div class="panel-title">MACIERZ RYZYKA</div></div>
-          <div class="panel-body">
-            <div class="threat-grid" id="threat-matrix"></div>
-          </div>
-        </div>
       </div>
 
       <!-- FIREWALL PAGE -->
       <div class="page" id="page-firewall">
-        <div class="section-title">REGUŁY ZAPORY OGNIOWEJ</div>
+        <div class="section-title">KONTROLA DOSTĘPU I MONITORING</div>
+        <div id="firewall-mode-info" style="margin-bottom:16px;padding:12px 16px;background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,0.2);border-radius:10px;font-size:12px;color:#8ecae6;line-height:1.7;">
+          <strong style="color:var(--accent);font-family:var(--mono);font-size:11px;">ℹ TRYB: MONITOR SIECI</strong><br>
+          NetGuard w trybie standardowym (instalacja na komputerze) <strong>monitoruje sieć i wykrywa zagrożenia</strong>, ale nie blokuje ruchu sieciowego innych urządzeń. Funkcje oznaczania urządzeń jako zablokowane lub ustawiania harmonogramów są zapisywane w dashboardzie — pełna blokada sieciowa działa dopiero gdy NetGuard jest uruchomiony jako brama sieciowa (NanoPi R2S / RPi przed routerem).
+        </div>
         <div class="panel" style="margin-bottom: 20px;">
           <div class="panel-header">
-            <div class="panel-title">REGUŁY AKTYWNE</div>
-            <button class="panel-action" onclick="addRule()">+ DODAJ REGUŁĘ</button>
+            <div class="panel-title">CO ROBI AGENT W TRYBIE STANDARDOWYM</div>
+            <span style="font-size:10px;color:#8a9bb0;font-family:var(--mono);">działające teraz</span>
           </div>
           <div class="panel-body" id="firewall-rules" style="padding: 0 18px;"></div>
         </div>
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">MONITORING IoT</div>
+            <button class="panel-action" onclick="openIotModal()">+ DODAJ URZĄDZENIE</button>
+          </div>
+          <div class="panel-body" id="iot-list" style="padding: 0 18px;"></div>
+        </div>
+      </div>
+
+      <!-- Modal IoT -->
+      <div class="modal-overlay" id="iot-modal-overlay" onclick="closeIotModal(event)">
+        <div class="modal" style="max-width:420px;">
+          <div class="modal-header">
+            <div class="modal-title">Urządzenie IoT</div>
+            <button class="modal-close" onclick="closeIotModal()">✕</button>
+          </div>
+          <div style="padding:20px 24px;display:flex;flex-direction:column;gap:14px;">
+            <div>
+              <div style="font-size:11px;color:#8a9bb0;margin-bottom:6px;font-family:var(--mono);">URZĄDZENIE Z SIECI</div>
+              <select id="iot-device-select" onchange="iotSelectDevice(this.value)"
+                style="width:100%;background:#0b0f14;border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:9px 12px;color:#f5f2ec;font-size:13px;outline:none;">
+                <option value="">— wybierz lub wpisz ręcznie —</option>
+              </select>
+            </div>
+            <div>
+              <div style="font-size:11px;color:#8a9bb0;margin-bottom:6px;font-family:var(--mono);">NAZWA URZĄDZENIA</div>
+              <input id="iot-name" type="text" placeholder="np. Kamera wejście, Domofon"
+                style="width:100%;box-sizing:border-box;background:#0b0f14;border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:9px 12px;color:#f5f2ec;font-size:13px;outline:none;"/>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+              <div>
+                <div style="font-size:11px;color:#8a9bb0;margin-bottom:6px;font-family:var(--mono);">ADRES MAC</div>
+                <input id="iot-mac" type="text" placeholder="aa:bb:cc:dd:ee:ff"
+                  style="width:100%;box-sizing:border-box;background:#0b0f14;border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:9px 12px;color:#f5f2ec;font-size:13px;outline:none;font-family:var(--mono);"/>
+              </div>
+              <div>
+                <div style="font-size:11px;color:#8a9bb0;margin-bottom:6px;font-family:var(--mono);">ADRES IP</div>
+                <input id="iot-ip" type="text" placeholder="192.168.100.x"
+                  style="width:100%;box-sizing:border-box;background:#0b0f14;border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:9px 12px;color:#f5f2ec;font-size:13px;outline:none;font-family:var(--mono);"/>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:center;">
+              <div>
+                <div style="font-size:11px;color:#8a9bb0;margin-bottom:6px;font-family:var(--mono);">LIMIT UPLOADU (MB/H)</div>
+                <input id="iot-upload" type="number" value="50" min="1" max="10000"
+                  style="width:100%;box-sizing:border-box;background:#0b0f14;border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:9px 12px;color:#f5f2ec;font-size:13px;outline:none;"/>
+              </div>
+              <div style="padding-top:18px;">
+                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+                  <input type="checkbox" id="iot-local-scan" checked style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;"/>
+                  <span style="font-size:12px;color:#c0ccd8;">Alert przy skanowaniu sieci lokalnej</span>
+                </label>
+              </div>
+            </div>
+            <div id="iot-modal-error" style="color:#ff3366;font-size:11px;min-height:14px;"></div>
+            <div style="display:flex;gap:10px;margin-top:4px;">
+              <button onclick="closeIotModal()" style="flex:1;background:none;border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:10px;color:#8a9bb0;cursor:pointer;font-size:13px;">Anuluj</button>
+              <button onclick="saveIotDevice()" style="flex:1;background:rgba(0,200,240,0.12);border:1px solid #00c8f0;border-radius:8px;padding:10px;color:#00c8f0;cursor:pointer;font-size:13px;font-weight:600;">Zapisz</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PARENTAL CONTROL PAGE -->
+      <div class="page" id="page-parental">
+        <div class="section-title">KONTROLA RODZICIELSKA</div>
+        <div class="panel" style="margin-bottom:16px;">
+          <div class="panel-body" style="padding:14px 16px;color:var(--text2);font-size:13px;line-height:1.6;">
+            Urządzenia oznaczone jako 🧒 <strong style="color:var(--text1);">Dziecko</strong> są monitorowane — czas online, odwiedzane domeny, aktywność nocna. Oznacz urządzenie przyciskiem <strong style="color:var(--text1);">🧒 DZIECKO</strong> w panelu urządzenia.
+          </div>
+        </div>
+        <div class="section-title" style="margin-bottom:12px;">📊 AKTYWNOŚĆ DZIECI — DZIŚ</div>
+        <div id="child-stats-content"></div>
       </div>
 
       <!-- TRAFFIC PAGE -->
       <div class="page" id="page-traffic">
         <div class="section-title">ANALIZA RUCHU SIECIOWEGO</div>
-        <div class="panel" style="margin-bottom: 20px;">
-          <div class="panel-header"><div class="panel-title">RUCH NA PRZESTRZENI CZASU</div></div>
+        <!-- Karty statystyk -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;" id="traffic-stats-row">
+          <div class="stat-card blue"><div class="stat-value" id="ts-down">—</div><div class="stat-label">POBRANO (10 min)</div></div>
+          <div class="stat-card"><div class="stat-value" id="ts-up">—</div><div class="stat-label">WYSŁANO (10 min)</div></div>
+          <div class="stat-card warn"><div class="stat-value" id="ts-speed">—</div><div class="stat-label">BIEŻĄCA PRĘDKOŚĆ</div></div>
+          <div class="stat-card"><div class="stat-value" id="ts-peak">—</div><div class="stat-label">SZCZYT POBIERANIA</div></div>
+        </div>
+        <!-- Wykres -->
+        <div class="panel" style="margin-bottom:20px;">
+          <div class="panel-header">
+            <div class="panel-title">RUCH NA PRZESTRZENI CZASU (10 MIN)</div>
+            <div style="display:flex;align-items:center;gap:12px;">
+              <span id="traffic-live-countdown" style="font-family:var(--mono);font-size:10px;color:var(--text2);"></span>
+              <button id="traffic-live-btn" onclick="toggleTrafficLive()" style="font-family:var(--mono);font-size:10px;font-weight:600;background:transparent;border:1px solid var(--border);color:var(--text2);padding:3px 10px;border-radius:4px;cursor:pointer;transition:all .2s;">○ LIVE</button>
+            </div>
+          </div>
           <div class="panel-body">
-            <div class="chart-container" style="height: 180px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-family:var(--mono);font-size:11px;">
+              <span><span style="color:#00d4ff;">↓</span> pobieranie &nbsp; <span style="color:#00ff88;">↑</span> wysyłanie</span>
+              <span id="traffic-axis-max" style="color:var(--text2);"></span>
+            </div>
+            <div class="chart-container" style="height:180px;">
               <canvas id="trafficChart2"></canvas>
             </div>
           </div>
         </div>
+        <!-- Urządzenia + Porty -->
         <div class="grid-2">
           <div class="panel">
-            <div class="panel-header"><div class="panel-title">TOP URZĄDZENIA — POBIERANIE</div></div>
+            <div class="panel-header"><div class="panel-title">TOP URZĄDZENIA — RUCH</div></div>
             <div class="panel-body" id="top-download"></div>
           </div>
           <div class="panel">
@@ -968,10 +1187,18 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
               NETGUARD — CHAT Z AGENTEM
             </div>
-            <span style="font-family: var(--mono); font-size: 10px; color: var(--accent2);">● LOKALNY MODEL / BRAK DANYCH NA ZEWNĄTRZ</span>
+            <span style="font-family: var(--mono); font-size: 10px; color: var(--accent2);">● LOKALNY AGENT / BRAK DANYCH NA ZEWNĄTRZ</span>
           </div>
           <div class="panel-body">
             <div class="ai-chat">
+              <svg class="ai-watermark" viewBox="150 60 380 430" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="340" cy="270" r="220" fill="none" stroke="#00c8f0" stroke-width="1.5"/>
+                <circle cx="340" cy="270" r="190" fill="none" stroke="#00c8f0" stroke-width="1.5"/>
+                <path d="M340 90 L470 135 L470 255 C470 340 410 410 340 440 C270 410 210 340 210 255 L210 135 Z" fill="#0d1220" stroke="#00c8f0" stroke-width="2.5"/>
+                <path d="M340 108 L455 149 L455 255 C455 333 399 399 340 427 C281 399 225 333 225 255 L225 149 Z" fill="none" stroke="#00c8f0" stroke-width="1" opacity="0.4"/>
+                <polyline points="275,270 320,315 415,215" fill="none" stroke="#00e887" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" opacity="0.2"/>
+                <polyline points="275,270 320,315 415,215" fill="none" stroke="#00e887" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
               <div class="chat-messages" id="chat-messages"></div>
               <div class="chat-input-area">
                 <input class="chat-input" id="chat-input" type="text"
@@ -985,12 +1212,12 @@
         <div style="margin-top: 16px;">
           <div class="section-title">SZYBKIE KOMENDY</div>
           <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-            <button class="tab" onclick="quickCmd('Pokaż wszystkie aktywne alerty')">Aktywne alerty</button>
-            <button class="tab" onclick="quickCmd('Które urządzenia mają podejrzaną aktywność?')">Podejrzane urządzenia</button>
-            <button class="tab" onclick="quickCmd('Analizuj ruch sieciowy z ostatniej godziny')">Analiza ruchu</button>
-            <button class="tab" onclick="quickCmd('Czy wykryto próby phishingu lub skanowania portów?')">Zagrożenia zewnętrzne</button>
-            <button class="tab" onclick="quickCmd('Zablokuj nieznane urządzenie 192.168.1.47')">Blokuj urządzenie</button>
-            <button class="tab" onclick="quickCmd('Raport bezpieczeństwa za ostatnie 24h')">Raport 24h</button>
+            <button class="tab" onclick="hdlAlerts()">Aktywne alerty</button>
+            <button class="tab" onclick="hdlDevices()">Urządzenia online</button>
+            <button class="tab" onclick="hdlTraffic()">Prędkość sieci</button>
+            <button class="tab" onclick="hdlThreats()">Zagrożenia 24h</button>
+            <button class="tab" onclick="hdlIDS()">Status IDS</button>
+            <button class="tab" onclick="hdlReport()">Raport 24h</button>
           </div>
         </div>
       </div>
@@ -1039,17 +1266,16 @@
             <div style="font-family: var(--mono); font-size: 12px; line-height: 2.2;">
               <div style="color: var(--text3); font-size: 10px; margin-bottom: 4px;"># 1. Instalacja zależności</div>
               <div style="background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; margin-bottom: 12px; color: var(--accent2);">
-                pip install scapy nmap-python psutil requests flask ollama<br>
-                sudo python3 netguard_agent.py --setup
+                pip install scapy psutil flask flask-cors requests python-dotenv manuf
               </div>
-              <div style="color: var(--text3); font-size: 10px; margin-bottom: 4px;"># 2. Uruchomienie agenta z lokalnym LLM</div>
+              <div style="color: var(--text3); font-size: 10px; margin-bottom: 4px;"># 2. Uruchomienie agenta (tryb standardowy)</div>
               <div style="background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; margin-bottom: 12px; color: var(--accent2);">
-                ollama pull llama3.2<br>
-                sudo python3 netguard_agent.py --model llama3.2 --dashboard
+                sudo python3 netguard_agent.py
               </div>
-              <div style="color: var(--text3); font-size: 10px; margin-bottom: 4px;"># 3. Lub tryb bez LLM (reguły heurystyczne)</div>
+              <div style="color: var(--text3); font-size: 10px; margin-bottom: 4px;"># 3. Opcjonalnie: z lokalnym LLM (Ollama)</div>
               <div style="background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; color: var(--accent2);">
-                sudo python3 netguard_agent.py --no-llm --alert-email <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="ed8c9f8289829d889f9d8188ad8a808c8481c38e8280">[email&#160;protected]</a>
+                ollama pull llama3.2<br>
+                sudo python3 netguard_agent.py --llm --model llama3.2
               </div>
             </div>
           </div>
@@ -1067,15 +1293,19 @@
 const API = '';
 let SECURITY_TOKEN = '';
 let ADMIN_SESSION = sessionStorage.getItem('ng_admin_session') || '';
+let CSRF_TOKEN = sessionStorage.getItem('ng_csrf_token') || '';
 let devices = [];
 let alerts  = [];
 let agentOnline = false;
+let isGateway = false;
+let gatewayWan = null;
+let gatewayLan = null;
 
 const threats = [
   { name: "Port Scanning",    level: 0, fill: "fill-red",  status: "BRAK", count: "0 prób",      active: false },
   { name: "ARP Spoofing",     level: 0, fill: "fill-red",  status: "BRAK", count: "0 prób",      active: false },
   { name: "DNS Tunneling",    level: 0, fill: "fill-warn", status: "BRAK", count: "0 queries",   active: false },
-  { name: "IoT / Tuya Anomalia", level: 0, fill: "fill-warn", status: "BRAK", count: "0 zdarzeń", active: false },
+  { name: "IoT Anomalia",        level: 0, fill: "fill-warn", status: "BRAK", count: "0 zdarzeń", active: false },
   { name: "Phishing DNS",     level: 0, fill: "fill-blue", status: "BRAK", count: "0 domen",     active: false },
   { name: "Tor / C2",         level: 0, fill: "fill-blue", status: "BRAK", count: "0 połączeń",  active: false },
 ];
@@ -1098,13 +1328,13 @@ async function fetchToken() {
 
 async function apiFetch(path) {
   try {
-    const r = await fetch(API + path);
+    const r = await fetch(API + path, { cache: 'no-store' });
     if (!r.ok) throw new Error(r.status);
     return await r.json();
   } catch(e) { return null; }
 }
 
-async function apiPost(path, body = {}) {
+async function apiPost(path, body = {}, adminCallback = null) {
   try {
     const r = await fetch(API + path, {
       method: 'POST',
@@ -1112,12 +1342,13 @@ async function apiPost(path, body = {}) {
         'Content-Type': 'application/json',
         'X-NetGuard-Token': SECURITY_TOKEN,
         'X-Admin-Session': ADMIN_SESSION,
+        'X-CSRF-Token': CSRF_TOKEN,
       },
-      body: JSON.stringify({ ...body, token: SECURITY_TOKEN, admin_session: ADMIN_SESSION }),
+      body: JSON.stringify({ ...body, token: SECURITY_TOKEN, admin_session: ADMIN_SESSION, csrf_token: CSRF_TOKEN }),
     });
     if (r.status === 401) {
       const d = await r.json();
-      if (d.need_admin) { showAdminLogin(path, body); return null; }
+      if (d.need_admin) { showAdminLogin(path, body, adminCallback); return null; }
     }
     if (r.status === 403) {
       showNotification('Brak autoryzacji — odśwież stronę', 'danger', 5000);
@@ -1128,12 +1359,14 @@ async function apiPost(path, body = {}) {
 }
 
 // ── Admin login modal ─────────────────────────────────────
-let _pendingPath = null;
-let _pendingBody = null;
+let _pendingPath     = null;
+let _pendingBody     = null;
+let _pendingCallback = null; // wywołane po udanym loginie zamiast domyślnego fetchAll
 
-function showAdminLogin(path, body) {
-  _pendingPath = path;
-  _pendingBody = body;
+function showAdminLogin(path, body, callback = null) {
+  _pendingPath     = path;
+  _pendingBody     = body;
+  _pendingCallback = callback;
   document.getElementById('admin-modal-overlay').classList.add('open');
   setTimeout(() => document.getElementById('admin-pwd-input').focus(), 100);
 }
@@ -1159,12 +1392,26 @@ async function submitAdminLogin() {
     if (r.ok && d.session) {
       ADMIN_SESSION = d.session;
       sessionStorage.setItem('ng_admin_session', ADMIN_SESSION);
+      CSRF_TOKEN = d.csrf_token || '';
+      sessionStorage.setItem('ng_csrf_token', CSRF_TOKEN);
       document.getElementById('admin-modal-overlay').classList.remove('open');
       document.getElementById('admin-pwd-input').value = '';
       errEl.textContent = '';
       showNotification('Zalogowano jako administrator', 'success', 3000);
       // Ponów oczekującą akcję
-      if (_pendingPath) { await apiPost(_pendingPath, _pendingBody); _pendingPath = null; }
+      if (_pendingPath) {
+        const result = await apiPost(_pendingPath, _pendingBody);
+        _pendingPath = null;
+        _pendingBody = null;
+        if (_pendingCallback) {
+          await _pendingCallback(result);
+          _pendingCallback = null;
+        } else {
+          document.getElementById('device-modal-overlay').classList.remove('open');
+          currentDeviceMAC = null;
+          await fetchAll();
+        }
+      }
     } else {
       errEl.textContent = d.error || 'Nieprawidłowe hasło';
       document.getElementById('admin-pwd-input').value = '';
@@ -1192,8 +1439,11 @@ function relativeTime(iso) {
   return `${Math.floor(diff/86400)} dni temu`;
 }
 
+let lastThreatCheckTime = null;
+
 // Aktualizuj zagrożenia na podstawie alertów
 function rebuildThreats(alertList) {
+  lastThreatCheckTime = new Date();
   const counts = { PORT_SCAN: 0, ARP_SPOOFING: 0, DNS_TUNNEL: 0,
                    MALICIOUS_DNS: 0, TOR_CONNECTION: 0,
                    IOT_LOCAL_SCAN: 0, IOT_HIGH_UPLOAD: 0, IOT_UNKNOWN_SERVER: 0 };
@@ -1235,11 +1485,42 @@ function rebuildThreats(alertList) {
 }
 
 async function fetchAll() {
-  const [devData, alertData, statsData] = await Promise.all([
+  const [devData, alertData, statsData, sysData] = await Promise.all([
     apiFetch('/api/devices'),
     apiFetch('/api/alerts'),
     apiFetch('/api/stats'),
+    apiFetch('/api/system'),
   ]);
+
+  // System health strip (tylko w trybie bramy)
+  const sysStrip = document.getElementById('system-strip');
+  if (sysData && isGateway) {
+    sysStrip.style.display = 'flex';
+    const t = sysData.temp_c;
+    document.getElementById('sys-temp').textContent = t != null ? t + '°C' : '—°C';
+    document.getElementById('sys-temp').style.color = t == null ? 'var(--text2)' : t < 55 ? 'var(--accent2)' : t < 70 ? 'var(--warn)' : 'var(--danger)';
+
+    document.getElementById('sys-cpu').textContent = (sysData.cpu_pct ?? '—') + '%';
+
+    const ru = sysData.ram_used_mb ?? 0, rt = sysData.ram_total_mb ?? 0, rp = sysData.ram_pct ?? 0;
+    document.getElementById('sys-ram').textContent = ru + ' / ' + rt + ' MB (' + rp + '%)';
+
+    document.getElementById('sys-wan-down').textContent = _fmtBps(sysData.wan_down_bps);
+    document.getElementById('sys-wan-up').textContent = _fmtBps(sysData.wan_up_bps);
+
+    const idsEl = document.getElementById('sys-ids');
+    if (sysData.ids_active) {
+      idsEl.textContent = 'IDS ✓';
+      idsEl.style.color = 'var(--accent2)';
+    } else {
+      idsEl.textContent = 'IDS ✗';
+      idsEl.style.color = 'var(--text2)';
+    }
+
+    document.getElementById('sys-uptime').textContent = fmtUptime(sysData.uptime_sec ?? 0);
+  } else if (sysStrip) {
+    sysStrip.style.display = 'none';
+  }
 
   agentOnline = !!(devData || alertData);
   const statusEl = document.getElementById('overall-status');
@@ -1266,10 +1547,13 @@ async function fetchAll() {
       down: d.down || '—',
       up: d.up || '—',
       is_host: d.is_host || false,
+      child: d.child || false,
+      schedule: d.schedule || null,
       lastSeen: relativeTime(d.last_seen),
     }));
     checkDeviceChanges(newDevices);
     devices = newDevices;
+    updateDemoDeviceCount();
   }
 
   // Alerty z agenta
@@ -1279,20 +1563,24 @@ async function fetchAll() {
       type: mapSeverity(e.severity),
       title: e.type ? e.type.replace(/_/g, ' ') : 'Zdarzenie',
       detail: e.description || '',
+      rawTime: e.timestamp ? new Date(e.timestamp).getTime() : 0,
       time: relativeTime(e.timestamp),
       rawType: e.type || '',
+      data: e.data || {},
+      explanation_pl: (e.data && e.data.explanation_pl) || '',
     }));
-    rebuildThreats(alertData);
+    const _cutoff24h = Date.now() - 86400000;
+    rebuildThreats(alertData.filter(e => !e.timestamp || new Date(e.timestamp).getTime() > _cutoff24h));
   }
 
   // Statystyki
   if (statsData) {
     document.getElementById('stat-online').textContent  = statsData.online  ?? '—';
-    document.getElementById('stat-new').textContent     = statsData.new_devices ?? '—';
-    document.getElementById('stat-alerts').textContent  = statsData.active_alerts ?? '—';
-    document.getElementById('stat-blocked').textContent = statsData.total_events ?? alerts.length;
-    document.getElementById('new-devices-badge').textContent = statsData.new_devices ?? '0';
-    document.getElementById('alerts-badge').textContent = statsData.active_alerts ?? '0';
+    document.getElementById('stat-new').textContent     = devices.filter(d => d.tag === 'new').length;
+    document.getElementById('stat-alerts').textContent  = statsData.active_alerts_24h ?? statsData.active_alerts ?? '—';
+    document.getElementById('stat-blocked').textContent = statsData.total_events  ?? '—';
+    document.getElementById('new-devices-badge').textContent = devices.filter(d => d.tag === 'new').length.toString();
+    document.getElementById('alerts-badge').textContent = (statsData.active_alerts || 0).toString();
 
     const hasAlerts = (statsData.active_alerts || 0) > 0;
     statusEl.className = hasAlerts ? 'status-badge warn' : 'status-badge ok';
@@ -1303,29 +1591,26 @@ async function fetchAll() {
   const active = document.querySelector('.page.active');
   if (active) {
     const name = active.id.replace('page-', '');
-    if (name === 'overview') initOverview();
+    if (name === 'overview') { initOverview(); updateOverviewTraffic(); }
     if (name === 'devices')  initDevices();
     if (name === 'alerts')   initAlerts();
     if (name === 'threats')  initThreats();
+    if (name === 'firewall') await initFirewall();
   }
 }
 
-// Chat z prawdziwym API agenta
+// Chat — zarezerwowane pod przyszły LLM (wymaga CPU z AVX2 lub R4S)
 async function getAIResponse(query) {
   if (!agentOnline) {
-    return '❌ Agent jest offline. Uruchom: sudo ~/netguard-env/bin/python netguard_agent.py --dashboard';
+    return '❌ Agent jest offline. Uruchom: sudo systemctl start netguard';
   }
-  try {
-    const r = await fetch(API + '/api/chat', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({message: query})
-    });
-    const data = await r.json();
-    return data.response || '(brak odpowiedzi)';
-  } catch(e) {
-    return `❌ Błąd połączenia z agentem: ${e.message}`;
-  }
+  return (
+    'ℹ️ Swobodny chat AI wymaga sprzętu z AVX2 (np. NetGuard Box R4S).\n\n' +
+    'Użyj przycisków powyżej — dają natychmiastowe odpowiedzi na podstawie ' +
+    'rzeczywistych danych z routera:\n' +
+    '• Aktywne alerty\n• Urządzenia online\n• Prędkość sieci\n• Zagrożenia 24h\n' +
+    '• Status IDS\n• Raport 24h'
+  );
 }
 
 // ============================================================
@@ -1352,6 +1637,7 @@ function renderDeviceItem(d) {
       <div class="up">↑ ${d.up || '—'}</div>
     </div>
     ${connBadge(d.connection)}
+    ${d.child ? '<span title="Ochrona dziecięca włączona" style="font-size:14px;margin-right:2px;">🧒</span>' : ''}
     <span class="device-tag tag-${d.tag}">${d.tag.toUpperCase()}</span>
   </div>`;
 }
@@ -1404,6 +1690,7 @@ function filterDevices(filter, btn) {
   else if (filter === 'new')        filtered = devices.filter(d => d.tag === 'new');
   else if (filter === 'suspicious') filtered = devices.filter(d => d.status === 'suspicious');
   else if (filter === 'blocked')    filtered = devices.filter(d => d.tag === 'blocked');
+  else if (filter === 'child')      filtered = devices.filter(d => d.child);
   else if (filter === 'wifi')       filtered = devices.filter(d => d.connection === 'wifi');
   else if (filter === 'wired')      filtered = devices.filter(d => d.connection === 'wired');
   else filtered = devices;
@@ -1413,11 +1700,142 @@ function filterDevices(filter, btn) {
     const labels = { all: 'brak urządzeń', online: 'brak urządzeń online',
                      new: 'brak nowych urządzeń', suspicious: 'brak podejrzanych urządzeń',
                      blocked: 'brak zablokowanych urządzeń',
+                     child: 'brak urządzeń z ochroną rodzicielską',
                      wifi: 'brak urządzeń WiFi', wired: 'brak urządzeń na kablu' };
     el.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text2);font-family:var(--mono);font-size:12px;">✓ ${labels[filter] || 'brak wyników'}</div>`;
   } else {
     el.innerHTML = filtered.map(renderDeviceItem).join('');
   }
+
+}
+
+async function loadChildStats() {
+  const el = document.getElementById('child-stats-content');
+  el.innerHTML = '<div style="padding:16px;color:var(--text2);font-family:var(--mono);font-size:12px;">Ładowanie...</div>';
+  try {
+    const r = await fetch('/api/children', {cache: 'no-store'});
+    const data = await r.json();
+    const children = data.children || [];
+    if (children.length === 0) {
+      el.innerHTML = '<div style="padding:16px;color:var(--text2);font-family:var(--mono);font-size:12px;">Brak urządzeń z ochroną rodzicielską. Oznacz urządzenie jako 🧒 Dziecko.</div>';
+      return;
+    }
+    el.innerHTML = children.map(c => {
+      const t = c.today;
+      const mins = t.total_minutes || 0;
+      const h = Math.floor(mins / 60), m = Math.round(mins % 60);
+      const timeStr = mins > 0 ? `${h}h ${m}min` : '—';
+      const onlineDot = c.online
+        ? '<span style="color:#22c55e;margin-right:6px;">●</span>'
+        : '<span style="color:#64748b;margin-right:6px;">●</span>';
+      const mac = c.mac || '';
+      const macId = mac.replace(/:/g, '');
+
+      // Buduj listę domen z przyciskami blokowania
+      let domainsHtml = '';
+      if (c.dns_today.length > 0) {
+        const SHOW = 5;
+        const allRows = c.dns_today.map((d, i) => {
+          const cls = i >= SHOW ? `dns-row dns-extra-${macId}` : 'dns-row';
+          const disp = i >= SHOW ? 'none' : 'flex';
+          return `<div class="${cls}" style="display:${disp};align-items:center;gap:8px;padding:5px 6px;border-bottom:1px solid rgba(255,255,255,0.06);">
+            <span style="color:var(--text1);font-size:14px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${d.domain}">${d.domain}</span>
+            <span style="color:var(--text2);font-size:13px;font-family:var(--mono);white-space:nowrap;">${d.count}×</span>
+            <button onclick="childBlockDomain('${mac}','${d.domain}')" style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:4px;padding:3px 10px;font-size:12px;cursor:pointer;white-space:nowrap;flex-shrink:0;">🚫 Zablokuj</button>
+          </div>`;
+        });
+        const extra = c.dns_today.length - SHOW;
+        const toggleBtn = extra > 0
+          ? `<div style="text-align:center;margin-top:4px;">
+               <button id="dns-toggle-${macId}" onclick="toggleDnsList('${macId}',${extra})" style="background:none;border:none;color:#60a5fa;font-size:11px;cursor:pointer;padding:4px;">Pokaż więcej (${extra})</button>
+             </div>`
+          : '';
+        domainsHtml = allRows.join('') + toggleBtn;
+      } else {
+        domainsHtml = '<div style="color:var(--text2);font-size:12px;padding:4px 0;">brak danych DNS (agent działa od dziś lub dziecko nieaktywne)</div>';
+      }
+
+      // Sekcja zablokowanych domen
+      const blocked = c.blocked_domains || [];
+      const blockedRows = blocked.length > 0
+        ? blocked.map(d =>
+            `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+              <span style="color:#f87171;font-size:14px;flex:1;">${d}</span>
+              <button onclick="childUnblockDomain('${mac}','${d}')" style="background:none;border:none;color:#94a3b8;font-size:15px;cursor:pointer;padding:0 6px;" title="Usuń blokadę">✕</button>
+            </div>`
+          ).join('')
+        : '<div style="color:var(--text2);font-size:13px;padding:4px 0;">brak zablokowanych domen</div>';
+
+      return `
+        <div class="panel" style="margin-bottom:12px;">
+          <div class="panel-body" style="padding:16px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+              <div style="font-size:15px;font-weight:600;color:var(--text1);">${onlineDot}${c.name}</div>
+              <div style="font-family:var(--mono);font-size:11px;color:var(--text2);">${c.ip}</div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;">
+              <div style="background:rgba(255,255,255,0.04);border-radius:6px;padding:10px;text-align:center;">
+                <div style="font-size:18px;font-weight:700;color:#60a5fa;">${timeStr}</div>
+                <div style="font-size:10px;color:var(--text2);margin-top:2px;">czas online dziś</div>
+              </div>
+              <div style="background:rgba(255,255,255,0.04);border-radius:6px;padding:10px;text-align:center;">
+                <div style="font-size:18px;font-weight:700;color:#a78bfa;">${t.first}</div>
+                <div style="font-size:10px;color:var(--text2);margin-top:2px;">pierwsze połączenie</div>
+              </div>
+              <div style="background:rgba(255,255,255,0.04);border-radius:6px;padding:10px;text-align:center;">
+                <div style="font-size:18px;font-weight:700;color:#a78bfa;">${t.last}</div>
+                <div style="font-size:10px;color:var(--text2);margin-top:2px;">ostatnie połączenie</div>
+              </div>
+            </div>
+            <div style="font-size:11px;color:var(--text2);font-family:var(--mono);margin-bottom:6px;letter-spacing:1px;">ODWIEDZANE DOMENY DZIŚ</div>
+            ${domainsHtml}
+            <div style="background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:10px 12px;margin-top:16px;">
+              <div style="font-size:11px;color:#f87171;font-family:var(--mono);margin-bottom:8px;letter-spacing:1px;">🚫 ZABLOKOWANE DOMENY</div>
+              ${blockedRows}
+              <div style="display:flex;gap:6px;margin-top:10px;">
+                <input id="block-input-${macId}" type="text" placeholder="np. youtube.com" style="flex:1;background:rgba(255,255,255,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:6px;padding:7px 10px;color:var(--text1);font-size:13px;font-family:var(--mono);">
+                <button onclick="childBlockCustom('${mac}')" style="background:rgba(239,68,68,0.25);border:1px solid rgba(239,68,68,0.5);color:#f87171;border-radius:6px;padding:7px 14px;font-size:13px;cursor:pointer;white-space:nowrap;font-weight:600;">Zablokuj</button>
+              </div>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+  } catch(e) {
+    el.innerHTML = '<div style="padding:16px;color:#f87171;font-family:var(--mono);font-size:12px;">Błąd ładowania statystyk dzieci</div>';
+  }
+}
+
+function toggleDnsList(macId, extra) {
+  const btn = document.getElementById('dns-toggle-' + macId);
+  const rows = document.querySelectorAll('.dns-extra-' + macId);
+  const expanded = btn.dataset.expanded === '1';
+  rows.forEach(r => { r.style.display = expanded ? 'none' : 'flex'; });
+  btn.textContent = expanded ? `Pokaż więcej (${extra})` : 'Zwiń';
+  btn.dataset.expanded = expanded ? '0' : '1';
+}
+
+async function childBlockDomain(mac, domain) {
+  if (!confirm(`Zablokować "${domain}" dla tego urządzenia?`)) return;
+  const d = await apiPost('/api/child_block/' + mac, {domain});
+  if (!d) return;
+  if (d.status === 'ok') { showNotification('Domena zablokowana: ' + d.domain, 'success'); loadChildStats(); }
+  else showNotification('Błąd: ' + (d.error || 'nieznany'), 'error');
+}
+
+async function childUnblockDomain(mac, domain) {
+  const d = await apiPost('/api/child_unblock/' + mac, {domain}, async () => loadChildStats());
+  if (!d) return;
+  if (d.status === 'ok') { showNotification('Odblokowano: ' + domain, 'success'); loadChildStats(); }
+  else showNotification('Błąd: ' + (d.error || 'nieznany'), 'error');
+}
+
+async function childBlockCustom(mac) {
+  const macId = mac.replace(/:/g, '');
+  const input = document.getElementById('block-input-' + macId);
+  const domain = (input.value || '').trim();
+  if (!domain) return;
+  await childBlockDomain(mac, domain);
+  input.value = '';
 }
 
 // ============================================================
@@ -1523,61 +1941,561 @@ function checkDeviceChanges(newDevices) {
   prevDeviceMACs = newMACs;
 }
 
+let _alertsFilter = 'all'; // 'all' | '24h'
+
+function setAlertsFilter(mode) {
+  _alertsFilter = mode;
+  initAlerts();
+}
+
+function showAlertsPage(mode) {
+  _alertsFilter = mode;
+  showPage('alerts');
+}
+
 function initAlerts() {
-  document.getElementById('alerts-full').innerHTML = alerts.map(a => renderAlertItem(a, false)).join('');
+  const btn24h = document.getElementById('alerts-filter-24h');
+  const btnAll = document.getElementById('alerts-filter-all');
+  const titleEl = document.getElementById('alerts-page-title');
+
+  const cutoff = Date.now() - 86400000;
+  let filtered;
+  if (_alertsFilter === '24h') {
+    filtered = alerts.filter(a => ['danger','warn'].includes(a.type) && a.rawTime > cutoff);
+    if (titleEl) titleEl.textContent = 'AKTYWNE ALERTY — OSTATNIE 24H';
+    if (btn24h) btn24h.style.color = 'var(--accent)';
+    if (btnAll) btnAll.style.color  = '';
+  } else {
+    filtered = alerts;
+    if (titleEl) titleEl.textContent = 'WSZYSTKIE ZDARZENIA';
+    if (btn24h) btn24h.style.color = '';
+    if (btnAll) btnAll.style.color  = 'var(--accent)';
+  }
+
+  const el = document.getElementById('alerts-full');
+  el.innerHTML = filtered.length
+    ? filtered.map(a => renderAlertItem(a, false)).join('')
+    : '<div style="padding:14px;color:#8a9bb0;font-size:13px;">Brak zdarzeń w wybranym zakresie</div>';
 }
 
 function initThreats() {
-  const active = threats.filter(t => t.active);
-  const inactive = threats.filter(t => !t.active);
-  document.getElementById('threats-active').innerHTML = active.map(renderThreatCard).join('') || '<div style="color: var(--text2); font-family: var(--mono); font-size: 12px; padding: 12px 0;">Brak aktywnych zagrożeń</div>';
-  document.getElementById('threats-history').innerHTML = `<div style="font-family: var(--mono); font-size: 11px; line-height: 2.2; color: var(--text2);">
-    <div>03:14 — <span style="color: var(--danger);">ARP Spoofing zablokowany</span></div>
-    <div>02:58 — <span style="color: var(--warn);">Port scan wykryty (192.168.1.47)</span></div>
-    <div>01:33 — <span style="color: var(--accent);">Nowe urządzenie (192.168.1.89)</span></div>
-    <div>00:12 — <span style="color: var(--accent2);">Baza zagrożeń zaktualizowana</span></div>
-    <div>Wczoraj 22:41 — <span style="color: var(--danger);">Blokada Tor exit node</span></div>
-  </div>`;
-  document.getElementById('threat-matrix').innerHTML = threats.map(renderThreatCard).join('');
+  const THREAT_TYPES = new Set(['PORT_SCAN','ARP_SPOOFING','DNS_TUNNEL','MALICIOUS_DNS',
+                                 'TOR_CONNECTION','IOT_LOCAL_SCAN','IOT_HIGH_UPLOAD','IOT_UNKNOWN_SERVER',
+                                 'NEW_DEVICE','DEVICE_BLOCKED']);
+  const colorMap = {
+    PORT_SCAN:          'var(--danger)', ARP_SPOOFING:    'var(--danger)',
+    TOR_CONNECTION:     'var(--danger)', MALICIOUS_DNS:   'var(--danger)',
+    DNS_TUNNEL:         'var(--warn)',   IOT_LOCAL_SCAN:  'var(--warn)',
+    IOT_HIGH_UPLOAD:    'var(--warn)',   IOT_UNKNOWN_SERVER: 'var(--warn)',
+    NEW_DEVICE:         'var(--accent)', DEVICE_BLOCKED:  'var(--accent2)',
+  };
+  const typeMap = {
+    'Port Scanning': 'PORT_SCAN',
+    'ARP Spoofing':  'ARP_SPOOFING',
+    'DNS Tunneling': 'DNS_TUNNEL',
+    'Phishing DNS':  'MALICIOUS_DNS',
+    'Tor / C2':      'TOR_CONNECTION',
+  };
+  const iotTypes = new Set(['IOT_LOCAL_SCAN','IOT_HIGH_UPLOAD','IOT_UNKNOWN_SERVER']);
+  const okDesc = {
+    'Port Scanning': 'Monitorowanie skanowania portów — brak podejrzanych prób',
+    'ARP Spoofing':  'Sprawdzono tablicę ARP — brak podszywania',
+    'DNS Tunneling': 'Analiza zapytań DNS — brak anomalii',
+    'IoT Anomalia':  'Monitoring urządzeń IoT — brak anomalii',
+    'Phishing DNS':  'Sprawdzono domeny DNS — brak złośliwych',
+    'Tor / C2':      'Sprawdzono połączenia wychodzące — brak Tor/C2',
+  };
+
+  // ── Aktywne zagrożenia — wszystkie typy ──────────────────────
+  const checkLabel = lastThreatCheckTime ? relativeTime(lastThreatCheckTime.toISOString()) : 'przed chwilą';
+  const activeEl = document.getElementById('threats-active');
+
+  activeEl.innerHTML = threats.map(t => {
+    const isIot = t.name === 'IoT Anomalia';
+    const rawType = isIot ? null : (typeMap[t.name] || '');
+    const related = isIot
+      ? alerts.filter(a => iotTypes.has(a.rawType)).slice(0, 5)
+      : (rawType ? alerts.filter(a => a.rawType === rawType).slice(0, 5) : []);
+    const col = isIot ? 'var(--warn)' : (colorMap[rawType] || 'var(--warn)');
+
+    if (t.active) {
+      const detailRows = related.map(a => {
+        const ip   = a.data.ip   ? `<span style="color:var(--text);font-weight:600;">${a.data.ip}</span>` : '';
+        const mac  = a.data.mac  ? `<span style="color:#8a9bb0;"> · ${a.data.mac}</span>` : '';
+        const cnt  = a.data.count ? `<span style="color:${col};"> · ${a.data.count} zapytań/min</span>` : '';
+        const desc = a.detail ? `<div style="color:var(--text2);margin-top:2px;">${a.detail}</div>` : '';
+        return `<div onclick="alertDetail(${a.id})" style="background:rgba(255,255,255,0.04);border-radius:6px;padding:8px 10px;cursor:pointer;margin-top:6px;transition:background .15s;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='rgba(255,255,255,0.04)'">
+          <div style="font-family:var(--mono);font-size:10px;color:#8a9bb0;margin-bottom:3px;">${a.time}</div>
+          <div style="font-size:12px;">${ip}${mac}${cnt}</div>
+          ${desc}
+        </div>`;
+      }).join('');
+      return `<div class="threat-card active-threat" style="margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <div class="threat-name">${t.name}</div>
+          <span style="color:${col};font-family:var(--mono);font-size:10px;font-weight:700;">${t.status} · ${t.count}</span>
+        </div>
+        <div class="threat-bar"><div class="threat-fill ${t.fill}" style="width:${t.level}%"></div></div>
+        ${related.length > 0 ? `<div style="margin-top:8px;">${detailRows}</div>` : ''}
+      </div>`;
+    } else {
+      return `<div style="display:flex;align-items:center;gap:12px;padding:9px 12px;border-left:2px solid var(--green);border-radius:6px;background:rgba(0,255,136,0.03);margin-bottom:6px;">
+        <span style="color:var(--green);font-size:15px;line-height:1;">✓</span>
+        <div style="flex:1;min-width:0;">
+          <div style="font-family:var(--mono);font-size:11px;font-weight:600;color:var(--text);">${t.name}</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px;">${okDesc[t.name] || 'sprawdzono — brak zagrożeń'}</div>
+        </div>
+        <span style="font-family:var(--mono);font-size:10px;color:var(--green);white-space:nowrap;">OK</span>
+      </div>`;
+    }
+  }).join('');
+
+  // ── Historia zagrożeń ───────────────────────────────────────
+  const recent = alerts.filter(a => THREAT_TYPES.has(a.rawType)).slice(0, 30);
+  const histEl = document.getElementById('threats-history');
+
+  if (recent.length === 0) {
+    histEl.innerHTML = '<div style="color:var(--text2);font-family:var(--mono);font-size:12px;padding:16px 0;">Brak zdarzeń w ostatnim okresie</div>';
+  } else {
+    histEl.innerHTML = recent.map(a => {
+      const col  = colorMap[a.rawType] || 'var(--text2)';
+      const label = a.rawType ? a.rawType.replace(/_/g,' ') : a.title;
+      const ip   = a.data.ip  ? `<span style="color:var(--text);"> · ${a.data.ip}</span>` : '';
+      const cnt  = a.data.count ? `<span style="color:${col};"> · ${a.data.count} zapytań/min</span>` : '';
+      const desc = a.detail ? `<div style="font-size:11px;color:var(--text2);margin-top:2px;padding-left:2px;">${a.detail}</div>` : '';
+      return `<div onclick="alertDetail(${a.id})" style="padding:8px 4px;border-bottom:1px solid rgba(255,255,255,0.05);cursor:pointer;transition:background .15s;" onmouseover="this.style.background='rgba(255,255,255,0.04)'" onmouseout="this.style.background=''">
+        <div style="font-family:var(--mono);font-size:10px;display:flex;justify-content:space-between;align-items:center;">
+          <span style="color:${col};font-weight:600;">${label}</span>
+          <span style="color:#8a9bb0;">${a.time}</span>
+        </div>
+        <div style="font-size:12px;margin-top:3px;">${ip}${cnt}</div>
+        ${desc}
+      </div>`;
+    }).join('');
+  }
 }
 
-function initFirewall() {
-  document.getElementById('firewall-rules').innerHTML = rules.map((r, i) => `
-    <div class="rule-item" id="rule-${i}">
-      <span class="rule-action ${r.action}">${r.action.toUpperCase()}</span>
-      <div class="rule-desc">${r.desc}<small>${r.detail}</small></div>
-      <button class="rule-toggle" onclick="toggleRule(${i})">${r.active ? 'WYŁĄCZ' : 'WŁĄCZ'}</button>
+// ── Polityki bezpieczeństwa (informacyjne) ────────────────────
+async function initFirewall() {
+  const devData = await apiFetch('/api/devices') || [];
+
+  const blocked  = devData.filter(d => d.tag === 'blocked');
+  const children = devData.filter(d => d.child);
+  const scheduled = devData.filter(d => d.schedule);
+
+  function badge(active, labelOn, labelOff) {
+    if (active) return `<span style="font-size:10px;font-weight:700;color:var(--accent2);font-family:var(--mono);background:rgba(0,255,136,0.08);padding:2px 8px;border-radius:4px;white-space:nowrap;">● ${labelOn}</span>`;
+    return `<span style="font-size:10px;color:#8a9bb0;font-family:var(--mono);background:rgba(255,255,255,0.04);padding:2px 8px;border-radius:4px;white-space:nowrap;">○ ${labelOff}</span>`;
+  }
+
+  const monitoring = [
+    {
+      desc: 'Wykrywanie urządzeń w sieci',
+      detail: 'Skanowanie ARP, ping sweep, synchronizacja z tablicą ARP routera',
+      active: true, stat: 'aktywne',
+    },
+    {
+      desc: 'Detekcja nowych urządzeń',
+      detail: 'Alert gdy nieznany MAC pojawi się w sieci',
+      active: true, stat: 'aktywne',
+    },
+    {
+      desc: 'Detekcja ARP Spoofing',
+      detail: 'Analiza pakietów ARP — alert przy konfliktach MAC/IP (broadcast widoczny zawsze)',
+      active: true, stat: 'aktywne',
+    },
+    {
+      desc: 'Detekcja zagrożeń sieciowych',
+      detail: 'DNS Tunneling, Malicious DNS, TOR, skanowanie portów — widoczne dla ruchu przechodzącego przez ten komputer',
+      active: true, stat: 'aktywne (ruch lokalny)',
+    },
+    {
+      desc: 'Analiza ruchu sieciowego',
+      detail: 'Pomiar przepustowości interfejsu, top porty, próbkowanie co 10s',
+      active: true, stat: 'aktywne',
+    },
+  ];
+
+  const gateway = [
+    {
+      desc: 'Blokada urządzeń',
+      detail: isGateway
+        ? 'Fizyczne odcięcie od internetu przez iptables FORWARD — blokada aktywna sieciowo'
+        : 'Oznaczanie w dashboardzie działa teraz. Rzeczywiste odcięcie od internetu — tylko tryb Gateway',
+      active: blocked.length > 0,
+      stat: blocked.length > 0 ? `${blocked.length} zablokowanych` : 'brak zablokowanych',
+    },
+    {
+      desc: 'Harmonogram dostępu',
+      detail: isGateway
+        ? 'Automatyczne odcięcie urządzenia od sieci w ustawionych godzinach przez iptables — aktywne'
+        : 'Godziny zapisywane teraz. Automatyczne odcięcie od sieci w tych godzinach — tylko tryb Gateway',
+      active: scheduled.length > 0,
+      stat: scheduled.length > 0 ? `${scheduled.length} urządzeń z harmonogramem` : 'brak harmonogramów',
+    },
+    {
+      desc: 'Ochrona DNS dla dzieci',
+      detail: isGateway
+        ? 'Cały ruch DNS dzieci przechodzi przez NanoPi — blokada domen aktywna'
+        : 'Blokada domen działa gdy zapytania DNS przechodzą przez ten komputer — pewne działanie tylko w trybie Gateway',
+      active: children.length > 0,
+      stat: children.length > 0 ? `${children.length} urządzeń` : 'brak urządzeń dziecięcych',
+    },
+  ];
+
+  const monHtml = monitoring.map(p => `
+    <div class="rule-item">
+      <span class="rule-action allow">MONITOR</span>
+      <div class="rule-desc">${p.desc}<small>${p.detail}</small></div>
+      ${badge(p.active, p.stat, p.stat)}
+    </div>`).join('');
+
+  const gwHtml = isGateway
+    ? `<div style="font-family:var(--mono);font-size:10px;letter-spacing:1px;color:var(--accent2);padding:14px 0 6px;">
+        ⬡ TRYB BRAMA — BLOKADY AKTYWNE SIECIOWO
+       </div>` +
+      gateway.map(p => `
+      <div class="rule-item">
+        <span class="rule-action block">BLOKADA</span>
+        <div class="rule-desc">${p.desc}<small>${p.detail}</small></div>
+        ${badge(p.active, p.stat, p.stat)}
+      </div>`).join('')
+    : `<div style="font-family:var(--mono);font-size:10px;letter-spacing:1px;color:#f59e0b;padding:14px 0 6px;opacity:0.8;">
+        WYMAGA TRYBU GATEWAY (NetGuard na NanoPi R2S / RPi przed routerem)
+       </div>` +
+      gateway.map(p => `
+      <div class="rule-item" style="opacity:0.65;">
+        <span class="rule-action" style="background:rgba(251,191,36,0.1);color:#f59e0b;border:1px solid rgba(251,191,36,0.25);">OZNACZENIE</span>
+        <div class="rule-desc">${p.desc}<small>${p.detail}</small></div>
+        ${badge(p.active, p.stat, p.stat)}
+      </div>`).join('');
+
+  document.getElementById('firewall-rules').innerHTML = monHtml + gwHtml;
+
+  const modeInfo = document.getElementById('firewall-mode-info');
+  if (modeInfo) {
+    if (isGateway) {
+      modeInfo.style.background = 'rgba(0,255,136,0.06)';
+      modeInfo.style.borderColor = 'rgba(0,255,136,0.2)';
+      modeInfo.style.color = '#a7f3d0';
+      modeInfo.innerHTML = '<strong style="color:var(--accent2);font-family:var(--mono);font-size:11px;">⬡ TRYB: BRAMA SIECIOWA</strong><br>'
+        + 'NetGuard działa jako <strong>brama sieciowa na NanoPi R2S</strong> — cały ruch LAN przechodzi przez urządzenie. '
+        + 'Blokady i harmonogramy <strong>fizycznie odcinają urządzenia od internetu</strong> przez iptables FORWARD.';
+    } else {
+      modeInfo.style.background = 'rgba(0,212,255,0.06)';
+      modeInfo.style.borderColor = 'rgba(0,212,255,0.2)';
+      modeInfo.style.color = '#8ecae6';
+      modeInfo.innerHTML = '<strong style="color:var(--accent);font-family:var(--mono);font-size:11px;">ℹ TRYB: MONITOR SIECI</strong><br>'
+        + 'NetGuard w trybie standardowym (instalacja na komputerze) <strong>monitoruje sieć i wykrywa zagrożenia</strong>, '
+        + 'ale nie blokuje ruchu sieciowego innych urządzeń. Pełna blokada sieciowa działa dopiero gdy NetGuard jest uruchomiony jako brama sieciowa (NanoPi R2S / RPi przed routerem).';
+    }
+  }
+
+  await loadIotList();
+}
+
+// ── IoT ────────────────────────────────────────────────────────
+async function loadIotList() {
+  const list = await apiFetch('/api/iot') || [];
+  const el = document.getElementById('iot-list');
+  if (!el) return;
+  if (list.length === 0) {
+    el.innerHTML = '<div style="padding:14px 0;color:#8a9bb0;font-size:13px;">Brak skonfigurowanych urządzeń IoT. Dodaj kamerę, domofon lub inne urządzenie smart home.</div>';
+    return;
+  }
+  el.innerHTML = list.map(d => `
+    <div class="rule-item">
+      <span class="rule-action block" style="min-width:60px;text-align:center;">IoT</span>
+      <div class="rule-desc">
+        ${d.name}
+        <small>${d.ip || '—'} &nbsp;·&nbsp; <span style="font-family:var(--mono)">${d.mac}</span></small>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
+        ${d.alert_on_local_scan
+          ? '<span style="font-size:10px;color:var(--accent2);font-family:var(--mono);background:rgba(0,255,136,0.08);padding:2px 7px;border-radius:4px;">● skan LAN</span>'
+          : '<span style="font-size:10px;color:#8a9bb0;font-family:var(--mono);background:rgba(255,255,255,0.04);padding:2px 7px;border-radius:4px;">○ skan LAN</span>'}
+        <span style="font-size:10px;color:#8a9bb0;font-family:var(--mono);background:rgba(255,255,255,0.04);padding:2px 7px;border-radius:4px;">${d.max_upload_mb_per_hour} MB/h</span>
+        <button class="rule-toggle" onclick="deleteIotDevice('${d.mac}')" style="color:var(--danger);border-color:rgba(255,51,102,0.3);">USUŃ</button>
+      </div>
     </div>
   `).join('');
 }
 
-function toggleRule(i) {
-  rules[i].active = !rules[i].active;
-  initFirewall();
+function openIotModal() {
+  document.getElementById('iot-name').value = '';
+  document.getElementById('iot-mac').value  = '';
+  document.getElementById('iot-ip').value   = '';
+  document.getElementById('iot-upload').value = '50';
+  document.getElementById('iot-local-scan').checked = true;
+  document.getElementById('iot-modal-error').textContent = '';
+  // Wypełnij dropdown urządzeniami z sieci
+  const sel = document.getElementById('iot-device-select');
+  sel.innerHTML = '<option value="">— wybierz lub wpisz ręcznie —</option>';
+  devices.forEach(d => {
+    const opt = document.createElement('option');
+    opt.value = JSON.stringify({mac: d.mac, ip: d.ip, name: d.name});
+    opt.textContent = `${d.name}  (${d.ip})  [${d.mac}]`;
+    sel.appendChild(opt);
+  });
+  document.getElementById('iot-modal-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('iot-name').focus(), 80);
 }
 
-function addRule() {
-  const name = prompt("Nazwa nowej reguły:");
-  if (name) {
-    rules.push({ action: 'block', desc: name, detail: 'Reguła dodana ręcznie', active: true });
-    initFirewall();
+function closeIotModal(e) {
+  if (e && e.target !== document.getElementById('iot-modal-overlay')) return;
+  document.getElementById('iot-modal-overlay').classList.remove('open');
+}
+
+function iotSelectDevice(val) {
+  if (!val) return;
+  try {
+    const d = JSON.parse(val);
+    document.getElementById('iot-mac').value  = d.mac  || '';
+    document.getElementById('iot-ip').value   = d.ip   || '';
+    document.getElementById('iot-name').value = d.name || '';
+  } catch(e) {}
+}
+
+async function saveIotDevice() {
+  const name = document.getElementById('iot-name').value.trim();
+  const mac  = document.getElementById('iot-mac').value.trim().toLowerCase();
+  const ip   = document.getElementById('iot-ip').value.trim();
+  const upload = parseInt(document.getElementById('iot-upload').value) || 50;
+  const localScan = document.getElementById('iot-local-scan').checked;
+  const errEl = document.getElementById('iot-modal-error');
+
+  if (!mac) { errEl.textContent = 'Wpisz adres MAC urządzenia'; return; }
+  if (!/^([0-9a-f]{2}:){5}[0-9a-f]{2}$/.test(mac)) {
+    errEl.textContent = 'Nieprawidłowy format MAC (aa:bb:cc:dd:ee:ff)'; return;
+  }
+
+  const payload = { mac, name: name || mac, ip, alert_on_local_scan: localScan, max_upload_mb_per_hour: upload };
+
+  const onSuccess = async () => {
+    document.getElementById('iot-modal-overlay').classList.remove('open');
+    showNotification(`Dodano urządzenie IoT: ${name || mac}`, 'success', 3000);
+    await loadIotList();
+  };
+
+  const r = await apiPost('/api/iot', payload, onSuccess);
+  if (r === null) return; // admin modal otwarty lub błąd obsłużony przez apiPost
+  await onSuccess();
+}
+
+async function deleteIotDevice(mac) {
+  if (!confirm(`Usunąć urządzenie IoT (${mac}) z monitorowania?`)) return;
+  const onSuccess = async () => {
+    showNotification('Urządzenie IoT usunięte', 'info', 2500);
+    await loadIotList();
+  };
+  const r = await apiPost('/api/iot/' + mac + '/delete', {}, onSuccess);
+  if (r === null) return;
+  await onSuccess();
+}
+
+function fmtBytes(b) {
+  if (b >= 1073741824) return (b/1073741824).toFixed(1) + ' GB';
+  if (b >= 1048576)    return (b/1048576).toFixed(1) + ' MB';
+  if (b >= 1024)       return (b/1024).toFixed(1) + ' KB';
+  return b + ' B';
+}
+
+// ── Słownik portów ───────────────────────────────────────────
+const PORT_NAMES = {
+  20:'FTP-Data', 21:'FTP', 22:'SSH', 23:'Telnet', 25:'SMTP', 53:'DNS',
+  67:'DHCP', 68:'DHCP', 80:'HTTP', 110:'POP3', 123:'NTP', 143:'IMAP',
+  179:'BGP', 443:'HTTPS', 445:'SMB', 465:'SMTPS', 514:'Syslog',
+  587:'SMTP', 853:'DNS-TLS', 993:'IMAPS', 995:'POP3S', 1194:'OpenVPN',
+  1723:'PPTP', 1883:'MQTT', 1900:'UPnP', 3306:'MySQL', 3389:'RDP',
+  4444:'Metasploit', 5353:'mDNS', 5900:'VNC', 6881:'BitTorrent',
+  8080:'HTTP-Alt', 8443:'HTTPS-Alt', 51820:'WireGuard',
+};
+const PORT_RISK = {
+  23:'danger', 4444:'danger', 21:'warn', 80:'warn',
+  5900:'warn', 6881:'warn', 3389:'warn', 23:'danger',
+};
+function _portColor(port) {
+  if (PORT_RISK[port] === 'danger') return 'var(--danger)';
+  if (PORT_RISK[port] === 'warn')   return 'var(--warn)';
+  if (PORT_NAMES[port])             return 'var(--accent2)';
+  return 'var(--text2)';
+}
+function _portLabel(port, proto) {
+  if (PORT_NAMES[port]) return PORT_NAMES[port];
+  if (proto && proto !== 'TCP/UDP') return proto;
+  return port > 1024 ? '⚠ nieznany' : `port ${port}`;
+}
+function fmtSpeed(bytesIn10s) {
+  const bps = bytesIn10s / 10;
+  if (bps >= 1048576) return (bps/1048576).toFixed(1) + ' MB/s';
+  if (bps >= 1024)    return (bps/1024).toFixed(0) + ' KB/s';
+  return bps.toFixed(0) + ' B/s';
+}
+function _fmtBps(bps) {
+  if (!bps || bps <= 0) return '—';
+  if (bps >= 1048576) return (bps/1048576).toFixed(1) + ' MB/s';
+  if (bps >= 1024)    return (bps/1024).toFixed(0) + ' KB/s';
+  return bps.toFixed(0) + ' B/s';
+}
+function fmtUptime(sec) {
+  const d = Math.floor(sec / 86400);
+  const h = Math.floor((sec % 86400) / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  if (d > 0) return d + 'd ' + h + 'h';
+  if (h > 0) return h + 'h ' + m + 'm';
+  return m + 'm';
+}
+
+// ── LIVE refresh ─────────────────────────────────────────────
+let _trafficLiveTimer    = null;
+let _trafficLiveTickTimer = null;
+let _trafficLiveTick     = 0;
+
+function toggleTrafficLive() {
+  const btn = document.getElementById('traffic-live-btn');
+  const cdEl = document.getElementById('traffic-live-countdown');
+  if (_trafficLiveTimer) {
+    clearInterval(_trafficLiveTimer);
+    clearInterval(_trafficLiveTickTimer);
+    _trafficLiveTimer = _trafficLiveTickTimer = null;
+    btn.textContent = '○ LIVE';
+    btn.style.cssText = 'font-family:var(--mono);font-size:10px;font-weight:600;background:transparent;border:1px solid var(--border);color:var(--text2);padding:3px 10px;border-radius:4px;cursor:pointer;';
+    cdEl.textContent = '';
+  } else {
+    _trafficLiveTick = 10;
+    cdEl.textContent = 'odświeżanie za 10s';
+    _trafficLiveTimer = setInterval(() => { initTraffic(); _trafficLiveTick = 10; }, 10000);
+    _trafficLiveTickTimer = setInterval(() => {
+      _trafficLiveTick--;
+      const el = document.getElementById('traffic-live-countdown');
+      if (el) el.textContent = `odświeżanie za ${_trafficLiveTick}s`;
+    }, 1000);
+    btn.textContent = '● LIVE';
+    btn.style.cssText = 'font-family:var(--mono);font-size:10px;font-weight:600;background:rgba(0,255,136,0.1);border:1px solid var(--accent2);color:var(--accent2);padding:3px 10px;border-radius:4px;cursor:pointer;';
   }
 }
 
-function initTraffic() {
-  const devs = devices.filter(d => d.status === 'online' && d.down !== '—');
-  document.getElementById('top-download').innerHTML = devs.sort((a,b) => parseFloat(b.down) - parseFloat(a.down)).slice(0,5).map(d =>
-    `<div class="device-item"><div class="device-info"><div class="device-name">${d.name}</div><div class="device-meta">${d.ip}</div></div><div class="device-traffic"><div class="down">↓ ${d.down}</div></div></div>`
-  ).join('');
-  const ports = [
-    {p: 443, proto: "HTTPS", count: "2847 conn"}, {p: 80, proto: "HTTP", count: "312 conn"},
-    {p: 53, proto: "DNS", count: "1204 queries"}, {p: 22, proto: "SSH", count: "4 conn"},
-    {p: 8080, proto: "HTTP-alt", count: "88 conn"},
-  ];
-  document.getElementById('top-ports').innerHTML = ports.map(p =>
-    `<div class="rule-item"><span style="font-family: var(--mono); color: var(--accent); font-size: 13px; min-width: 50px;">${p.p}</span><div class="rule-desc">${p.proto}<small>${p.count}</small></div></div>`
-  ).join('');
-  setTimeout(() => drawChart('trafficChart2', 180), 50);
+// ── Inicjalizacja strony ruchu ────────────────────────────────
+async function initTraffic() {
+  const r = await apiFetch('/api/traffic');
+  if (!r) {
+    document.getElementById('top-download').innerHTML = '<div style="color:var(--text2);padding:16px;font-size:13px;">Agent offline lub brak danych.</div>';
+    document.getElementById('top-ports').innerHTML = '';
+    return;
+  }
+
+  // ── Karty statystyk ──────────────────────────────────────
+  const samples = r.samples || [];
+  const totalDown = samples.reduce((s, x) => s + (x.down || 0), 0);
+  const totalUp   = samples.reduce((s, x) => s + (x.up   || 0), 0);
+  const lastDown  = samples.length ? (samples[samples.length-1].down || 0) : 0;
+  const lastUp    = samples.length ? (samples[samples.length-1].up   || 0) : 0;
+  const peakDown  = samples.length ? Math.max(...samples.map(s => s.down || 0)) : 0;
+  const el = (id) => document.getElementById(id);
+  el('ts-down').textContent  = fmtBytes(totalDown);
+  el('ts-up').textContent    = fmtBytes(totalUp);
+  el('ts-speed').textContent = `↓ ${fmtSpeed(lastDown)}  ↑ ${fmtSpeed(lastUp)}`;
+  el('ts-peak').textContent  = fmtSpeed(peakDown);
+
+  // ── Wykres — wspólna skala dla down i up ─────────────────
+  const axisMax = document.getElementById('traffic-axis-max');
+  if (axisMax && samples.length) {
+    const globalMax = Math.max(...samples.map(s => Math.max(s.down||0, s.up||0)));
+    axisMax.textContent = `max: ${fmtSpeed(globalMax)}/10s`;
+  }
+  drawTrafficChartShared('trafficChart2', samples, 180);
+
+  // ── Top urządzenia z paskami ─────────────────────────────
+  const dlEl = document.getElementById('top-download');
+  if (r.top_devices && r.top_devices.length > 0) {
+    const maxBytes = r.top_devices[0].bytes || 1;
+    const totalBytes = r.top_devices.reduce((s, d) => s + (d.bytes||0), 0);
+    dlEl.innerHTML = r.top_devices.map(d => {
+      const pct  = Math.round((d.bytes / maxBytes) * 100);
+      const share = Math.round((d.bytes / totalBytes) * 100);
+      const barColor = pct > 70 ? '#00d4ff' : pct > 30 ? '#00b4d8' : '#0096b7';
+      return `<div style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+          <div>
+            <div style="font-size:13px;color:var(--text);font-weight:500;">${d.name || d.mac}</div>
+            <div style="font-family:var(--mono);font-size:10px;color:var(--text2);margin-top:1px;">${d.ip || d.mac}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-family:var(--mono);font-size:13px;color:#00d4ff;">${fmtBytes(d.bytes)}</div>
+            <div style="font-family:var(--mono);font-size:10px;color:var(--text2);">${share}% całości</div>
+          </div>
+        </div>
+        <div style="height:4px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;">
+          <div style="height:100%;width:${pct}%;background:${barColor};border-radius:2px;transition:width .6s ease;"></div>
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    dlEl.innerHTML = '<div style="color:var(--text2);padding:16px;font-size:13px;">Brak danych — agent zbiera statystyki od startu. Odśwież za chwilę.</div>';
+  }
+
+  // ── Top porty z nazwami usług ─────────────────────────────
+  const ptEl = document.getElementById('top-ports');
+  if (r.top_ports && r.top_ports.length > 0) {
+    const maxCount = r.top_ports[0].count || 1;
+    ptEl.innerHTML = r.top_ports.map((p, idx) => {
+      const label   = _portLabel(p.port, p.proto);
+      const color   = _portColor(p.port);
+      const pct     = Math.round((p.count / maxCount) * 100);
+      const isRisk  = PORT_RISK[p.port] === 'danger';
+      const unknown = !PORT_NAMES[p.port] && p.proto === 'TCP/UDP';
+      const detailId = `port-detail-${idx}`;
+      const detail   = unknown ? _portDetail(p.port, p.count) : '';
+      const devsHtml = (p.devices && p.devices.length > 0)
+        ? p.devices.map(d => `<span style="font-family:var(--mono);font-size:10px;background:rgba(255,255,255,0.06);padding:1px 6px;border-radius:3px;color:var(--text);">${d.name}</span>`).join(' ')
+        : '';
+      const hasDetail = unknown || devsHtml;
+      return `<div style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;${hasDetail?'cursor:pointer;':''}"
+             ${hasDetail ? `onclick="const el=document.getElementById('${detailId}');el.style.display=el.style.display==='none'?'block':'none'"` : ''}>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-family:var(--mono);font-size:12px;font-weight:700;color:${color};min-width:44px;">${p.port}</span>
+            <span style="font-size:12px;color:${color};font-weight:600;">${label}${isRisk ? ' ⚠' : ''}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-family:var(--mono);font-size:11px;color:var(--text2);">${p.count.toLocaleString()} pak.</span>
+            ${hasDetail ? `<span style="font-size:10px;color:var(--text2);">▾</span>` : ''}
+          </div>
+        </div>
+        <div style="height:3px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;margin-bottom:${hasDetail?'6px':'0'};">
+          <div style="height:100%;width:${pct}%;background:${color};border-radius:2px;opacity:0.7;transition:width .6s ease;"></div>
+        </div>
+        ${hasDetail ? `<div id="${detailId}" style="display:none;padding:8px 10px;background:rgba(255,255,255,0.03);border-radius:6px;border-left:2px solid ${color};font-size:11px;color:var(--text2);line-height:1.7;">
+          ${devsHtml ? `<div style="margin-bottom:${unknown?'6px':'0'};">Urządzenia: ${devsHtml}</div>` : ''}
+          ${unknown ? detail : ''}
+        </div>` : ''}
+      </div>`;
+    }).join('');
+  } else {
+    ptEl.innerHTML = '<div style="color:var(--text2);padding:16px;font-size:13px;">Brak danych — przechwytywanie pakietów zbiera dane od startu.</div>';
+  }
+}
+
+function _portDetail(port, count) {
+  let category, desc, risk;
+  if (port >= 49152) {
+    category = 'Port efemeryczny (49152–65535)';
+    desc = 'Tymczasowy port przydzielany automatycznie przez system do aktywnych połączeń wychodzących. Każde połączenie z internetem używa losowego portu z tego zakresu — to normalne zachowanie.';
+    risk = count > 5000
+      ? '⚠ Duża liczba pakietów może sugerować P2P (torrenty, gry online) lub aktywny transfer plików.'
+      : '✓ Liczba pakietów w normie.';
+  } else if (port >= 1024) {
+    category = 'Port zarejestrowany (1024–49151)';
+    desc = 'Zarezerwowany dla aplikacji użytkownika i usług sieciowych. Może być: gra online, klient P2P, aplikacja firmowa lub niestandardowy serwis.';
+    risk = count > 3000
+      ? '⚠ Wysoka aktywność — sprawdź które urządzenie używa tego portu.'
+      : '✓ Aktywność w normie.';
+  } else {
+    category = 'Port systemowy nierozpoznany (0–1023)';
+    desc = 'Porty poniżej 1024 są zarezerwowane dla standardowych usług sieciowych. Ten port nie jest w słowniku — może być niestandardowa konfiguracja.';
+    risk = '⚠ Warto sprawdzić co nasłuchuje na tym porcie.';
+  }
+  return `<strong style="color:var(--text);">${category}</strong><br>${desc}<br><span style="color:${count > 4000 ? 'var(--warn)' : 'var(--accent2)'};">${risk}</span>`;
 }
 
 // ============================================================
@@ -1629,12 +2547,250 @@ async function sendChat() {
   if (!text) return;
   input.value = '';
   addUserMessage(text);
-  addTyping();
-  const response = await getAIResponse(text);
-  removeTyping();
-  addAIMessage(response);
+
+  if (!agentOnline) { addAIMessage('❌ Agent jest offline.'); return; }
+
+  // utwórz pustą bańkę — będziemy dopisywać tokeny
+  const msgs = document.querySelector('.chat-messages');
+  const bubble = document.createElement('div');
+  bubble.className = 'message ai';
+  bubble.innerHTML = '<span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>';
+  msgs.appendChild(bubble);
+  bubble.scrollIntoView({block: 'end'});
+
+  let fullText = '';
+  let started  = false;
+
+  try {
+    const r = await fetch(API + '/api/ask', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({question: text})
+    });
+
+    if (r.status === 403) {
+      bubble.innerHTML = '🔒 AI dostępne od planu Home. <a href="https://netguardhome.pl/#cennik" target="_blank" style="color:var(--accent)">Więcej info</a>';
+      return;
+    }
+    if (r.status === 503 || !r.body) {
+      bubble.textContent = '⚠️ Model AI offline — uruchom: systemctl start netguard-llm (Beetle)';
+      return;
+    }
+
+    const reader = r.body.getReader();
+    const dec    = new TextDecoder();
+    let buf      = '';
+
+    while (true) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, {stream: true});
+      const lines = buf.split('\n');
+      buf = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const payload = line.slice(6);
+        if (payload === '[DONE]') break;
+        try {
+          const obj = JSON.parse(payload);
+          if (obj.token !== undefined) {
+            if (!started) { bubble.textContent = ''; started = true; }
+            fullText += obj.token;
+            bubble.textContent = fullText;
+            bubble.scrollIntoView({block: 'end'});
+          }
+          if (obj.error) { bubble.textContent = '❌ ' + obj.error; }
+        } catch {}
+      }
+    }
+    if (!fullText && !bubble.textContent.startsWith('❌')) {
+      bubble.textContent = '(brak odpowiedzi)';
+    }
+  } catch(e) {
+    bubble.textContent = `❌ Błąd: ${e.message}`;
+  }
 }
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function _hdlStart(label) {
+  showPage('ai');
+  addUserMessage(label);
+  addTyping();
+}
+function _hdlDone(text) {
+  removeTyping();
+  addAIMessage(text);
+}
+function _sevLabel(s) { return {CRITICAL:'🔴 KRYTYCZNY', HIGH:'🟠 WYSOKI', MEDIUM:'🟡 ŚREDNI'}[s] || '⚪ ' + s; }
+function _ago(iso) {
+  if (!iso) return '';
+  const d = Math.round((Date.now() - new Date(iso)) / 60000);
+  return d < 1 ? 'przed chwilą' : d < 60 ? d + ' min temu' : Math.round(d/60) + 'h temu';
+}
+
+// ── Handler: Aktywne alerty ───────────────────────────────────────────────────
+function hdlAlerts() {
+  _hdlStart('Aktywne alerty');
+  const cutoff = Date.now() - 86400000;
+  const active = alerts.filter(a => a.rawTime > cutoff && ['danger','warn'].includes(a.type));
+  if (!active.length) { _hdlDone('✅ Brak aktywnych alertów w ostatnich 24h.'); return; }
+  const crit = active.filter(a => a.type === 'danger').length;
+  const high = active.filter(a => a.type === 'warn').length;
+  let out = `**Alerty z ostatnich 24h:** ${active.length} (🔴 ${crit} krytycznych, 🟠 ${high} wysokich)\n\n`;
+  active.slice(0, 8).forEach(a => {
+    out += `${_sevLabel(a.rawType === 'SURICATA_ALERT' ? a.data.severity_raw === 1 ? 'CRITICAL' : 'HIGH' : a.type === 'danger' ? 'CRITICAL' : 'HIGH')}  ${_ago(new Date(a.rawTime).toISOString())}\n`;
+    out += `\`${a.detail}\`\n\n`;
+  });
+  if (active.length > 8) out += `_...i ${active.length - 8} więcej. Otwórz zakładkę Zagrożenia._`;
+  _hdlDone(out);
+}
+
+// ── Handler: Urządzenia online ────────────────────────────────────────────────
+function hdlDevices() {
+  _hdlStart('Urządzenia online');
+  const online  = devices.filter(d => d.status === 'online');
+  const offline = devices.filter(d => d.status !== 'online');
+  const blocked = devices.filter(d => d.blocked);
+  const newDev  = devices.filter(d => !d.trusted && !d.is_host);
+  if (!devices.length) { _hdlDone('❌ Brak danych o urządzeniach — agent offline?'); return; }
+  let out = `**Urządzenia w sieci:** ${devices.length} łącznie\n`;
+  out += `📶 Online: **${online.length}** | Offline: ${offline.length} | 🚫 Zablokowane: ${blocked.length}\n\n`;
+  if (online.length) {
+    out += `**Online teraz:**\n`;
+    online.forEach(d => {
+      const name = d.hostname || d.ip || d.mac;
+      const conn = d.conn === 'wifi' ? '📡' : d.conn === 'wired' ? '🔌' : '❓';
+      out += `${conn} \`${d.ip || d.mac}\` — ${name}\n`;
+    });
+  }
+  if (newDev.length) out += `\n⚠️ **Nowe/niezaufane urządzenia:** ${newDev.length} — sprawdź w zakładce Urządzenia.`;
+  _hdlDone(out);
+}
+
+// ── Handler: Prędkość sieci (świeże dane) ─────────────────────────────────────
+async function hdlTraffic() {
+  _hdlStart('Prędkość sieci');
+  const r = await apiFetch('/api/traffic');
+  if (!r) { _hdlDone('❌ Brak danych o ruchu — agent offline lub brak sniffera.'); return; }
+  const samples   = r.samples || [];
+  const last      = samples[samples.length - 1] || {};
+  const lastDown  = last.down || 0;
+  const lastUp    = last.up   || 0;
+  const peakDown  = samples.length ? Math.max(...samples.map(s => s.down || 0)) : 0;
+  const totalDown = samples.reduce((s, x) => s + (x.down || 0), 0);
+  const totalUp   = samples.reduce((s, x) => s + (x.up   || 0), 0);
+  let out = `**Ruch sieciowy** (ostatnie ${Math.round(samples.length * 10 / 60)} min)\n\n`;
+  out += `⬇️ Pobieranie teraz: **${fmtSpeed(lastDown)}**\n`;
+  out += `⬆️ Wysyłanie teraz:  **${fmtSpeed(lastUp)}**\n`;
+  out += `📈 Szczyt pobierania: ${fmtSpeed(peakDown)}\n`;
+  out += `📦 Łącznie: ⬇️ ${fmtBytes(totalDown)}  ⬆️ ${fmtBytes(totalUp)}\n`;
+  if (r.top_devices && r.top_devices.length) {
+    out += `\n**Top urządzenia (ruch łączny):**\n`;
+    r.top_devices.slice(0, 4).forEach(d => {
+      out += `\`${d.ip || d.mac}\` ${d.name || ''}  —  ${fmtBytes(d.bytes)}\n`;
+    });
+  }
+  if (r.top_ports && r.top_ports.length) {
+    out += `\n**Top porty:**\n`;
+    r.top_ports.slice(0, 4).forEach(p => {
+      out += `Port \`${p.port}\` (${p.proto})  —  ${p.count} połączeń\n`;
+    });
+  }
+  _hdlDone(out);
+}
+
+// ── Handler: Zagrożenia 24h ───────────────────────────────────────────────────
+function hdlThreats() {
+  _hdlStart('Zagrożenia 24h');
+  const cutoff  = Date.now() - 86400000;
+  const serious = alerts.filter(a => a.rawTime > cutoff && a.type === 'danger');
+  const ids     = alerts.filter(a => a.rawTime > cutoff && a.rawType === 'SURICATA_ALERT');
+  const scans   = alerts.filter(a => a.rawTime > cutoff && a.rawType === 'PORT_SCAN');
+  const arp     = alerts.filter(a => a.rawTime > cutoff && a.rawType === 'ARP_SPOOF');
+  if (!serious.length && !ids.length) { _hdlDone('✅ Brak poważnych zagrożeń w ostatnich 24h.'); return; }
+  let out = `**Zagrożenia z ostatnich 24h:**\n\n`;
+  if (ids.length)   out += `🛡️ Alerty IDS (Suricata): **${ids.length}**\n`;
+  if (scans.length) out += `🔍 Skanowanie portów: **${scans.length}**\n`;
+  if (arp.length)   out += `⚠️ ARP Spoofing: **${arp.length}**\n`;
+  const other = serious.length - ids.length - scans.length - arp.length;
+  if (other > 0)    out += `🔴 Inne krytyczne: **${other}**\n`;
+  if (ids.length) {
+    const uniq = [...new Set(ids.map(a => (a.data && a.data.signature) || a.detail))];
+    out += `\n**Sygnatury IDS:**\n`;
+    uniq.slice(0, 5).forEach(s => { out += `• \`${s}\`\n`; });
+    if (uniq.length > 5) out += `• _...i ${uniq.length - 5} więcej_\n`;
+  }
+  _hdlDone(out);
+}
+
+// ── Handler: Status IDS ───────────────────────────────────────────────────────
+async function hdlIDS() {
+  _hdlStart('Status IDS');
+  const r = await apiFetch('/api/ids/status');
+  const cutoff = Date.now() - 86400000;
+  const idsAlerts = alerts.filter(a => a.rawTime > cutoff && a.rawType === 'SURICATA_ALERT');
+  if (!r) {
+    _hdlDone(`❌ IDS niedostępny — Suricata nie działa lub brak endpointu.\n\nAlerty IDS w bazie: **${idsAlerts.length}** (ostatnie 24h)`);
+    return;
+  }
+  const status = r.running ? '✅ Aktywna' : '❌ Zatrzymana';
+  let out = `**Suricata IDS**\n\n`;
+  out += `Status: **${status}**\n`;
+  if (r.rules_count) out += `Reguły: **${r.rules_count}** sygnatur\n`;
+  if (r.interface)   out += `Interfejs: \`${r.interface}\`\n`;
+  out += `\n**Alerty IDS dziś:** **${idsAlerts.length}**\n`;
+  if (idsAlerts.length) {
+    const bySig = {};
+    idsAlerts.forEach(a => {
+      const s = (a.data && a.data.signature) || '?';
+      bySig[s] = (bySig[s] || 0) + 1;
+    });
+    out += `\n**Najczęstsze sygnatury:**\n`;
+    Object.entries(bySig).sort((a,b) => b[1]-a[1]).slice(0,5).forEach(([s,c]) => {
+      out += `\`${s}\`  —  ${c}×\n`;
+    });
+  }
+  _hdlDone(out);
+}
+
+// ── Handler: Raport 24h ───────────────────────────────────────────────────────
+async function hdlReport() {
+  _hdlStart('Raport bezpieczeństwa 24h');
+  const r = await apiFetch('/api/traffic');
+  const cutoff   = Date.now() - 86400000;
+  const all24    = alerts.filter(a => a.rawTime > cutoff);
+  const crit24   = all24.filter(a => a.type === 'danger');
+  const high24   = all24.filter(a => a.type === 'warn');
+  const online   = devices.filter(d => d.status === 'online');
+  const newDev   = devices.filter(d => !d.trusted && !d.is_host);
+  const idsCount = all24.filter(a => a.rawType === 'SURICATA_ALERT').length;
+  const samples  = r ? (r.samples || []) : [];
+  const totalDown = samples.reduce((s, x) => s + (x.down || 0), 0);
+  const totalUp   = samples.reduce((s, x) => s + (x.up   || 0), 0);
+  const lastDown  = samples.length ? (samples[samples.length-1].down || 0) : 0;
+  const lastUp    = samples.length ? (samples[samples.length-1].up   || 0) : 0;
+  const ok = !crit24.length && !idsCount;
+  let out = ok
+    ? `✅ **Sieć bezpieczna** — brak krytycznych zdarzeń w ostatnich 24h.\n\n`
+    : `⚠️ **Wykryto zdarzenia wymagające uwagi.**\n\n`;
+  out += `**📡 Sieć:**\n`;
+  out += `Urządzenia online: **${online.length}** / ${devices.length}\n`;
+  if (newDev.length) out += `Nowe urządzenia: **${newDev.length}** ⚠️\n`;
+  out += `Prędkość teraz: ⬇️ ${fmtSpeed(lastDown)}  ⬆️ ${fmtSpeed(lastUp)}\n`;
+  if (totalDown || totalUp) out += `Transfer 10 min: ⬇️ ${fmtBytes(totalDown)}  ⬆️ ${fmtBytes(totalUp)}\n`;
+  out += `\n**🛡️ Bezpieczeństwo:**\n`;
+  out += `Alerty łącznie: **${all24.length}** (🔴 ${crit24.length} krytycznych, 🟠 ${high24.length} wysokich)\n`;
+  if (idsCount) out += `Alerty IDS (Suricata): **${idsCount}**\n`;
+  const blocked = devices.filter(d => d.blocked);
+  if (blocked.length) out += `Zablokowane urządzenia: **${blocked.length}**\n`;
+  if (crit24.length) {
+    out += `\n**🔴 Krytyczne zdarzenia:**\n`;
+    crit24.slice(0, 4).forEach(a => { out += `• \`${a.detail}\`  ${_ago(new Date(a.rawTime).toISOString())}\n`; });
+  }
+  _hdlDone(out);
+}
+
+// ── Stary quickCmd zostaje jako fallback dla LLM ──────────────────────────────
 function quickCmd(cmd) {
   showPage('ai');
   document.getElementById('chat-input').value = cmd;
@@ -1644,43 +2800,96 @@ function quickCmd(cmd) {
 // ============================================================
 // CHARTS
 // ============================================================
-function drawChart(id, height) {
+function _drawLineOnCanvas(ctx, data, w, h, color, fillColor) {
+  if (!data || data.length < 2) return;
+  const max = Math.max(...data, 1);
+  const pts = data.map((v, i) => [i * w / (data.length - 1), h - (v / max) * (h * 0.85) - h * 0.05]);
+  ctx.beginPath();
+  ctx.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length; i++) {
+    const xc = (pts[i-1][0] + pts[i][0]) / 2;
+    ctx.bezierCurveTo(xc, pts[i-1][1], xc, pts[i][1], pts[i][0], pts[i][1]);
+  }
+  ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke();
+  ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath();
+  ctx.fillStyle = fillColor; ctx.fill();
+}
+
+function _prepareCanvas(id, height) {
   const canvas = document.getElementById(id);
-  if (!canvas) return;
+  if (!canvas) return null;
   const ctx = canvas.getContext('2d');
   canvas.width = canvas.parentElement.offsetWidth;
   canvas.height = height || 120;
-  const w = canvas.width, h = canvas.height;
-  ctx.clearRect(0, 0, w, h);
-
-  const points = 60;
-  const downData = Array.from({length: points}, (_, i) => 80 + Math.sin(i/5)*30 + Math.random()*40);
-  const upData = Array.from({length: points}, (_, i) => 20 + Math.sin(i/8)*10 + Math.random()*15);
-
-  // Grid lines
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.strokeStyle = 'rgba(30,45,71,0.8)';
   ctx.lineWidth = 1;
   for (let y = 0; y <= 4; y++) {
-    ctx.beginPath(); ctx.moveTo(0, y * h/4); ctx.lineTo(w, y * h/4); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, y * canvas.height/4); ctx.lineTo(canvas.width, y * canvas.height/4); ctx.stroke();
   }
+  return ctx;
+}
 
-  function drawLine(data, color, fillColor) {
-    const max = Math.max(...data);
-    const pts = data.map((v, i) => [i * w/(points-1), h - (v/max) * (h * 0.85) - h * 0.05]);
-    ctx.beginPath();
-    ctx.moveTo(pts[0][0], pts[0][1]);
-    for (let i = 1; i < pts.length; i++) {
-      const xc = (pts[i-1][0] + pts[i][0]) / 2;
-      ctx.bezierCurveTo(xc, pts[i-1][1], xc, pts[i][1], pts[i][0], pts[i][1]);
-    }
-    ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke();
-    // Fill
-    ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath();
-    ctx.fillStyle = fillColor; ctx.fill();
+// Wykres na stronie głównej (overview) — szkielet animowany
+function drawChart(id, height) {
+  const ctx = _prepareCanvas(id, height);
+  if (!ctx) return;
+  const w = ctx.canvas.width, h = ctx.canvas.height;
+  const points = 40;
+  const downData = Array.from({length: points}, (_, i) => 40 + Math.sin(i/4)*25 + Math.random()*20);
+  const upData   = Array.from({length: points}, (_, i) => 15 + Math.sin(i/6)*8  + Math.random()*10);
+  _drawLineOnCanvas(ctx, downData, w, h, '#00d4ff', 'rgba(0,212,255,0.08)');
+  _drawLineOnCanvas(ctx, upData,   w, h, '#00ff88', 'rgba(0,255,136,0.06)');
+}
+
+// Wykres na stronie Ruch sieciowy — prawdziwe próbki z /api/traffic
+function drawTrafficChart(id, samples, height) {
+  const ctx = _prepareCanvas(id, height);
+  if (!ctx) return;
+  const w = ctx.canvas.width, h = ctx.canvas.height;
+  if (!samples || samples.length < 2) {
+    ctx.fillStyle = 'rgba(245,242,236,0.2)';
+    ctx.font = '13px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('Zbieranie danych — odśwież za chwilę', w/2, h/2);
+    return;
   }
+  const downData = samples.map(s => s.down);
+  const upData   = samples.map(s => s.up);
+  _drawLineOnCanvas(ctx, downData, w, h, '#00d4ff', 'rgba(0,212,255,0.08)');
+  _drawLineOnCanvas(ctx, upData,   w, h, '#00ff88', 'rgba(0,255,136,0.06)');
+  // Legenda
+  ctx.font = '11px monospace';
+  ctx.fillStyle = '#00d4ff'; ctx.fillText('↓ pobieranie', 60, 16);
+  ctx.fillStyle = '#00ff88'; ctx.fillText('↑ wysyłanie', 160, 16);
+}
 
-  drawLine(downData, '#00d4ff', 'rgba(0,212,255,0.08)');
-  drawLine(upData, '#00ff88', 'rgba(0,255,136,0.06)');
+// Wykres ze wspólną skalą dla down i up (strona Ruch sieciowy)
+function drawTrafficChartShared(id, samples, height) {
+  const ctx = _prepareCanvas(id, height);
+  if (!ctx) return;
+  const w = ctx.canvas.width, h = ctx.canvas.height;
+  if (!samples || samples.length < 2) {
+    ctx.fillStyle = 'rgba(200,216,240,0.3)';
+    ctx.font = '13px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('Zbieranie danych — odśwież za chwilę', w/2, h/2);
+    return;
+  }
+  const globalMax = Math.max(...samples.map(s => Math.max(s.down||0, s.up||0)), 1);
+  const norm = (v) => v / globalMax;
+  const downNorm = samples.map(s => norm(s.down || 0));
+  const upNorm   = samples.map(s => norm(s.up   || 0));
+  _drawLineOnCanvas(ctx, downNorm.map(v => v * globalMax), w, h, '#00d4ff', 'rgba(0,212,255,0.10)');
+  _drawLineOnCanvas(ctx, upNorm.map(v => v * globalMax),   w, h, '#00ff88', 'rgba(0,255,136,0.07)');
+  // Etykiety osi Y (lewa strona)
+  ctx.font = '9px monospace';
+  ctx.fillStyle = 'rgba(200,216,240,0.4)';
+  ctx.textAlign = 'left';
+  [1, 0.75, 0.5, 0.25].forEach(frac => {
+    const y = h - frac * h * 0.85 - h * 0.05;
+    ctx.fillText(fmtSpeed(globalMax * frac), 4, y - 2);
+  });
 }
 
 // ============================================================
@@ -1693,21 +2902,28 @@ function showPage(name) {
   document.querySelectorAll('.nav-item').forEach(n => {
     if (n.getAttribute('onclick') && n.getAttribute('onclick').includes(name)) n.classList.add('active');
   });
+  // Synchronizuj mobile nav bar
+  document.querySelectorAll('.mobile-nav-item').forEach(b => b.classList.remove('active'));
+  const mn = document.getElementById('mn-' + name);
+  if (mn) mn.classList.add('active');
   if (name === 'devices') initDevices();
   if (name === 'alerts') initAlerts();
   if (name === 'threats') initThreats();
   if (name === 'firewall') initFirewall();
   if (name === 'traffic') initTraffic();
   if (name === 'ai') initChat();
-  if (name === 'overview') drawChart('trafficChart', 120);
+  if (name === 'overview') updateOverviewTraffic();
+  if (name === 'parental') loadChildStats();
 }
 
 function dismissAlert(id) {
   const idx = alerts.findIndex(a => a.id === id);
   if (idx > -1) alerts.splice(idx, 1);
   initAlerts();
-  document.getElementById('alerts-badge').textContent = alerts.filter(a => a.type === 'danger' || a.type === 'warn').length;
-  document.getElementById('stat-alerts').textContent = alerts.filter(a => a.type === 'danger' || a.type === 'warn').length;
+  const cutoff24h = Date.now() - 86400000;
+  const active24h = alerts.filter(a => ['danger','warn'].includes(a.type) && (a.rawTime||0) > cutoff24h);
+  document.getElementById('alerts-badge').textContent = active24h.length.toString();
+  document.getElementById('stat-alerts').textContent = active24h.length;
 }
 
 function deviceDetail(id) {
@@ -1724,6 +2940,21 @@ function updateClock() {
 
 function simulateLiveData() {
   if (document.getElementById('page-overview').classList.contains('active')) {
+    updateOverviewTraffic();
+  }
+}
+
+async function updateOverviewTraffic() {
+  try {
+    const r = await apiFetch('/api/traffic');
+    drawTrafficChart('trafficChart', r.samples, 120);
+    // Aktualizuj statystyki w nagłówku — ostatnia próbka
+    const el = document.getElementById('traffic-overview-stats');
+    if (el && r.samples && r.samples.length > 0) {
+      const last = r.samples[r.samples.length - 1];
+      el.innerHTML = `<span style="color:var(--accent);">↓ ${fmtBytes(last.down)}/10s</span> &nbsp; <span style="color:var(--accent2);">↑ ${fmtBytes(last.up)}/10s</span>`;
+    }
+  } catch(e) {
     drawChart('trafficChart', 120);
   }
 }
@@ -1736,7 +2967,7 @@ let currentDeviceMAC = null;
 const VENDOR_HINTS = {
   'apple':      '🍎 Urządzenie Apple — prawdopodobnie iPhone, iPad lub MacBook. Sprawdź w ustawieniach WiFi telefonu.',
   'samsung':    '📺 Urządzenie Samsung — może to telewizor, telefon lub tablet Galaxy.',
-  'huawei':     '📡 Urządzenie Huawei — często router lub telefon.',
+  'huawei':     '📡 Urządzenie sieciowe — często router lub telefon.',
   'tp-link':    '🔌 TP-Link — zwykle router, switch lub wzmacniacz WiFi.',
   'hon hai':    '🖨️ Foxconn/Hon Hai — producent komponentów dla wielu firm (Brother, Apple i inne).',
   'brother':    '🖨️ Prawdopodobnie drukarka lub urządzenie wielofunkcyjne Brother.',
@@ -1769,8 +3000,8 @@ function deviceDetail(id) {
   document.getElementById('md-status').textContent   = d.status === 'online' ? '🟢 Online' : '⚫ Offline';
   document.getElementById('md-lastseen').textContent = d.lastSeen;
   document.getElementById('md-tag').textContent      = d.tag === 'trusted' ? '✓ Zaufane' : '⚠ Nowe / Niezweryfikowane';
-  const connLabels = { wifi: '📶 WiFi', wired: '🔌 Kabel (LAN)', unknown: '? Nieznane' };
-  document.getElementById('md-connection').textContent = connLabels[d.connection] || '? Nieznane';
+  document.getElementById('conn-btn-wifi').className  = 'conn-toggle' + (d.connection === 'wifi'  ? ' active-wifi'  : '');
+  document.getElementById('conn-btn-wired').className = 'conn-toggle' + (d.connection === 'wired' ? ' active-wired' : '');
   document.getElementById('md-name-input').value     = (d.hostname && d.hostname !== d.ip) ? d.hostname : '';
   document.getElementById('md-name-input').placeholder = 'np. ' + (d.vendor || 'Urządzenie') + ' w salonie';
   document.getElementById('md-hint-text').textContent = getVendorHint(d.vendor, d.mac);
@@ -1779,9 +3010,57 @@ function deviceDetail(id) {
     trustBtn.textContent = '✓ Już zaufane';
     trustBtn.disabled = true; trustBtn.style.opacity = '0.5';
   } else {
-    trustBtn.textContent = '✓ OZNACZ JAKO ZAUFANE';
+    trustBtn.textContent = '✓ OZNACZ ZAUFANE';
     trustBtn.disabled = false; trustBtn.style.opacity = '1';
   }
+  
+  const blockBtn    = document.getElementById('md-block-btn');
+  const unblockBtn  = document.getElementById('md-unblock-btn');
+  const schedBtn    = document.getElementById('md-schedule-btn');
+  const controlLabel = document.getElementById('md-control-label');
+  const controlInfo  = document.getElementById('md-control-info');
+
+  // Wspólne właściwości grid dla przycisków pełnej szerokości
+  const _btnFull = 'grid-column:span 2;width:100%;margin-left:0;font-size:12px;font-weight:600;';
+
+  if (isGateway) {
+    // Tryb gateway — pełne kolory, realne działanie
+    controlLabel.textContent = 'KONTROLA DOSTĘPU (tryb brama — blokady aktywne sieciowo)';
+    controlLabel.style.color = 'var(--accent2)';
+    blockBtn.style.cssText    = _btnFull + 'background:#dc2626;border:1px solid #ef4444;color:#fff;';
+    unblockBtn.style.cssText  = _btnFull + 'color:var(--text);border:1px solid var(--border);';
+    schedBtn.style.cssText    = 'font-size:12px;font-weight:600;background:#7c3aed;border:1px solid #8b5cf6;color:#fff;';
+    blockBtn.textContent      = '⊘ ZABLOKUJ';
+    unblockBtn.textContent    = '⟲ ODBLOKUJ';
+    controlInfo.innerHTML     = '⬡ <strong>Tryb: Brama sieciowa.</strong> Blokada i harmonogram fizycznie odcinają urządzenie od internetu przez iptables FORWARD.';
+    controlInfo.style.cssText = 'margin-top:10px;padding:8px 10px;background:rgba(0,255,136,0.06);border:1px solid rgba(0,255,136,0.2);border-radius:6px;font-size:11px;color:var(--accent2);line-height:1.6;';
+  } else {
+    // Tryb monitor — wygaszone przyciski
+    controlLabel.textContent = 'OZNACZENIA (monitor sieci — nie blokują ruchu sieciowego)';
+    controlLabel.style.color = '#a8bccc';
+    blockBtn.style.cssText    = _btnFull + 'background:rgba(255,51,102,0.25);border:1px solid rgba(255,51,102,0.4);color:#ff6b8a;';
+    unblockBtn.style.cssText  = _btnFull + 'color:var(--text);border:1px solid var(--border);';
+    schedBtn.style.cssText    = 'font-size:12px;font-weight:600;background:rgba(139,92,246,0.3);border:1px solid rgba(139,92,246,0.5);color:#c4b0ff;';
+    blockBtn.textContent      = '⊘ OZNACZ ZABLOKOWANE';
+    unblockBtn.textContent    = '⟲ ODZNACZ BLOKADĘ';
+    controlInfo.innerHTML     = 'ℹ <strong>Tryb: Monitor sieci.</strong> Rzeczywista blokada działa tylko w trybie Gateway (NetGuard na NanoPi R2S / RPi przed routerem).';
+    controlInfo.style.cssText = 'margin-top:10px;padding:8px 10px;background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.15);border-radius:6px;font-size:11px;color:#8ecae6;line-height:1.6;';
+  }
+
+  blockBtn.style.display   = 'block';
+  unblockBtn.style.display = 'block';
+
+  const childBtn = document.getElementById('md-child-btn');
+  if (d.child) {
+    childBtn.textContent = '🧒 OCHRONA WŁĄCZONA';
+    childBtn.style.background = isGateway ? '#92400e' : 'rgba(146,64,14,0.5)';
+    childBtn.style.outline = '2px solid #fbbf24';
+  } else {
+    childBtn.textContent = '🧒 DZIECKO';
+    childBtn.style.background = isGateway ? '#f59e0b' : 'rgba(245,158,11,0.25)';
+    childBtn.style.outline = 'none';
+  }
+
   document.getElementById('device-modal-overlay').classList.add('open');
 }
 
@@ -1812,11 +3091,70 @@ async function trustDevice() {
 
 async function blockDevice() {
   if (!currentDeviceMAC) return;
-  if (!confirm('Czy na pewno chcesz zablokować to urządzenie?')) return;
+  const msg = isGateway
+    ? 'Zablokować urządzenie?\n\nTryb brama: urządzenie zostanie fizycznie odcięte od internetu przez iptables.'
+    : 'Oznaczyć urządzenie jako zablokowane?\n\nUrządzenie zostanie oznaczone w dashboardzie.\nRzeczywiste odcięcie od internetu wymaga trybu Gateway.';
+  if (!confirm(msg)) return;
   await apiPost('/api/block/' + currentDeviceMAC);
   closeDeviceModal();
   await fetchAll();
 }
+
+async function toggleChild() {
+  if (!currentDeviceMAC) return;
+  const d = devices.find(x => x.mac === currentDeviceMAC);
+  const enabling = !d?.child;
+  if (enabling && !confirm('Włączyć ochronę dziecięcą dla tego urządzenia?\n\nFiltrowanie DNS działa gdy zapytania przechodzą przez ten komputer.\nPewne działanie tylko w trybie Gateway (NanoPi R2S / RPi przed routerem).')) return;
+  const r = await apiPost('/api/child/' + currentDeviceMAC);
+  if (r) {
+    if (d) d.child = (r.status === 'child_added');
+    showNotification(d?.child ? '🧒 Ochrona dziecięca włączona' : '🧒 Ochrona dziecięca wyłączona', 'info', 3000);
+    deviceDetail(d?.id);
+    await fetchAll();
+  }
+}
+
+async function unblockDevice() {
+  if (!currentDeviceMAC) return;
+  if (!confirm('Czy odblokować to urządzenie?')) return;
+  await apiPost('/api/unblock/' + currentDeviceMAC);
+  closeDeviceModal();
+  await fetchAll();
+}
+
+async function setConnection(type) {
+  if (!currentDeviceMAC) return;
+  const res = await apiPost('/api/connection', { mac: currentDeviceMAC, connection: type });
+  if (!res || res.error) return;
+  const d = devices.find(x => x.mac === currentDeviceMAC);
+  if (d) d.connection = type;
+  document.getElementById('conn-btn-wifi').className  = 'conn-toggle' + (type === 'wifi'  ? ' active-wifi'  : '');
+  document.getElementById('conn-btn-wired').className = 'conn-toggle' + (type === 'wired' ? ' active-wired' : '');
+  initDevices();
+}
+
+function openScheduleModal() {
+  document.getElementById('sch-mac-display').textContent = currentDeviceMAC;
+  document.getElementById('schedule-modal-overlay').classList.add('open');
+}
+
+async function submitSchedule() {
+  const start = document.getElementById('sch-start-input').value;
+  const end = document.getElementById('sch-end-input').value;
+  if(!start || !end) { alert('Wprowadź obie godziny harmonogramu.'); return; }
+  await apiPost('/api/schedule', { mac: currentDeviceMAC, start: start, end: end });
+  document.getElementById('schedule-modal-overlay').classList.remove('open');
+  closeDeviceModal();
+  await fetchAll();
+}
+
+async function clearSchedule() {
+  await apiPost('/api/schedule', { mac: currentDeviceMAC, start: "", end: "" });
+  document.getElementById('schedule-modal-overlay').classList.remove('open');
+  closeDeviceModal();
+  await fetchAll();
+}
+
 
 // ============================================================
 // MODAL: ALERT
@@ -1834,6 +3172,10 @@ const THREAT_DESCRIPTIONS = {
   'DEVICE_BLOCKED':     { level: 'info',     desc: 'Urządzenie zostało zablokowane przez administratora sieci. Nie może wysyłać ani odbierać ruchu sieciowego dopóki blokada nie zostanie zdjęta.' },
   'DEVICE_TRUSTED':     { level: 'info',     desc: 'Urządzenie zostało oznaczone jako zaufane. NetGuard nie będzie generował alertów przy jego pojawieniu się w sieci.' },
   'DEVICE_RENAMED':     { level: 'info',     desc: 'Nazwa urządzenia została zmieniona przez administratora sieci.' },
+  'CHILD_BLOCK':        { level: 'info',     desc: 'Ochrona dziecięca zablokowała próbę dostępu do niedozwolonej strony (pornografia, narkotyki, przemoc). Domena nie została otwarta — urządzenie dziecka otrzymało odpowiedź "strona nie istnieje".' },
+  'CHILD_NIGHT':        { level: 'warn',     desc: 'Urządzenie dziecka było aktywne w sieci po godzinie 22:00. Alert wysyłany raz na dobę.' },
+  'CHILD_PROTECTION_ON':  { level: 'info',  desc: 'Administrator włączył ochronę dziecięcą dla tego urządzenia. Blokowane są zapytania DNS do stron z treściami nieodpowiednimi dla dzieci.' },
+  'CHILD_PROTECTION_OFF': { level: 'info',  desc: 'Administrator wyłączył ochronę dziecięcą dla tego urządzenia.' },
 };
 
 // ── Zalecenia dla administratora ─────────────────────────────
@@ -1842,15 +3184,15 @@ const THREAT_RECOMMENDATIONS = {
     title: 'Wykryto skanowanie portów',
     steps: [
       'Sprawdź czy adres źródłowy jest zewnętrzny (internet) czy lokalny (192.168.x.x). Zewnętrzny skan to norma — lokalny oznacza zainfekowane urządzenie w sieci.',
-      'Jeśli IP jest zewnętrzne: zweryfikuj czy router nie ma otwartych portów (<b>Panel Huawei → Firewall</b>). Wyłącz UPnP jeśli włączony.',
-      'Jeśli IP jest lokalne: natychmiast zidentyfikuj urządzenie i odłącz je od sieci przez przycisk "Zablokuj" w dashboardzie.',
-      'Opcjonalnie zablokuj konkretne IP: <code>sudo iptables -I INPUT -s &lt;IP&gt; -j DROP</code>',
+      'Jeśli IP jest zewnętrzne: zweryfikuj czy router nie ma otwartych portów (<b>Panel administracyjny routera → Firewall</b>). Wyłącz UPnP jeśli włączony.',
+      'Jeśli IP jest lokalne: zidentyfikuj urządzenie na liście i fizycznie odłącz je od sieci lub zmień hasło WiFi. Możesz też oznaczyć je w dashboardzie przyciskiem "Zablokuj" (pełna blokada sieciowa wymaga trybu Gateway).',
+      'Opcjonalnie zablokuj konkretne IP na routerze: Panel routera → Firewall → Filtr adresów MAC/IP.',
     ]
   },
   'ARP_SPOOFING': {
     title: 'Wykryto atak ARP Spoofing',
     steps: [
-      '<b>Pilne:</b> Znajdź urządzenie z podejrzanym MAC-em na liście urządzeń i natychmiast je zablokuj przyciskiem "Zablokuj".',
+      '<b>Pilne:</b> Znajdź urządzenie z podejrzanym MAC-em na liście urządzeń. Fizycznie odłącz je od sieci lub zablokuj na routerze (Panel routera → Filtr MAC). Możesz też oznaczyć je w dashboardzie przyciskiem "Zablokuj".',
       'Fizycznie odłącz nieznane urządzenia od sieci (kable, WiFi).',
       'Zmień hasło WiFi — jeśli atakujący był w sieci, mógł je znać.',
       'Sprawdź wszystkie urządzenia domowe pod kątem infekcji (antywirus, factory reset).',
@@ -1867,7 +3209,7 @@ const THREAT_RECOMMENDATIONS = {
   'MALICIOUS_DNS': {
     title: 'Połączenie ze złośliwą domeną',
     steps: [
-      '<b>Pilne:</b> Zidentyfikuj urządzenie źródłowe i natychmiast je zablokuj przyciskiem "Zablokuj".',
+      '<b>Pilne:</b> Zidentyfikuj urządzenie źródłowe na liście urządzeń. Fizycznie odłącz je od sieci lub zablokuj na routerze (Panel routera → Filtr MAC).',
       'Urządzenie może być zainfekowane. Uruchom pełne skanowanie antywirusowe.',
       'Zmień hasła do kont używanych na tym urządzeniu (email, bankowość, social media).',
       'Rozważ factory reset urządzenia jeśli infekcja się potwierdzi.',
@@ -1878,13 +3220,13 @@ const THREAT_RECOMMENDATIONS = {
     steps: [
       'Sprawdź czy ktoś świadomie używa Tor Browser — to legalne, ale warto wiedzieć.',
       'Jeśli nikt nie używa Tor: urządzenie może być zainfekowane. Zidentyfikuj je i przeskanuj antywirusem.',
-      'Jeśli chcesz zablokować Tor w sieci: zablokuj urządzenie źródłowe w dashboardzie.',
+      'Jeśli chcesz odciąć to urządzenie od sieci: zablokuj je na routerze (Panel routera → Filtr MAC) lub fizycznie odłącz od WiFi.',
     ]
   },
   'IOT_LOCAL_SCAN': {
     title: 'Urządzenie IoT skanuje sieć lokalną',
     steps: [
-      '<b>Pilne:</b> Urządzenie IoT (kamera, domofon) nie powinno nigdy łączyć się z innymi urządzeniami w sieci. Zablokuj je natychmiast przyciskiem "Zablokuj".',
+      '<b>Pilne:</b> Urządzenie IoT (kamera, domofon) nie powinno łączyć się z innymi urządzeniami w sieci. Odizoluj je w sieci gościnnej routera (Guest WiFi) lub zablokuj na routerze — Panel routera → Filtr MAC.',
       'Sprawdź czy dostępna jest aktualizacja firmware urządzenia — może zawierać łatkę bezpieczeństwa.',
       'Rozważ umieszczenie urządzeń IoT w osobnej sieci gościnnej (Guest WiFi) odizolowanej od głównej sieci.',
     ]
@@ -1893,7 +3235,7 @@ const THREAT_RECOMMENDATIONS = {
     title: 'Urządzenie IoT wysyła dużo danych',
     steps: [
       'Sprawdź czy to nie zaplanowana aktualizacja firmware — może być uzasadnione.',
-      'Jeśli upload jest nieoczekiwany: zablokuj urządzenie przyciskiem "Zablokuj" i sprawdź logi.',
+      'Jeśli upload jest nieoczekiwany: odizoluj urządzenie w sieci gościnnej routera lub zablokuj je w Panelu routera → Filtr MAC.',
       'Skontaktuj się z producentem urządzenia jeśli aktywność jest niewyjaśniona.',
     ]
   },
@@ -1910,7 +3252,7 @@ const THREAT_RECOMMENDATIONS = {
     steps: [
       'Sprawdź czy rozpoznajesz to urządzenie na liście urządzeń (IP, producent, hostname).',
       'Jeśli je rozpoznajesz: kliknij "Oznacz jako zaufane" aby wyciszyć przyszłe alerty.',
-      'Jeśli jest nieznane: kliknij "Zablokuj" aby uniemożliwić mu dostęp do sieci.',
+      'Jeśli jest nieznane: zmień hasło WiFi lub zablokuj je na routerze (Panel routera → Filtr MAC). Możesz też oznaczyć je w dashboardzie przyciskiem "Zablokuj" dla śledzenia.',
     ]
   },
 };
@@ -1976,6 +3318,15 @@ function alertDetail(id) {
   const descEl = document.getElementById('am-desc');
   descEl.textContent = info.desc;
   descEl.className = 'alert-threat-desc ' + (info.level === 'critical' ? 'critical' : info.level === 'info' ? 'info' : '');
+  const explEl = document.getElementById('am-explanation');
+  if (a.explanation_pl) {
+    explEl.textContent = a.explanation_pl;
+    explEl.style.display = 'block';
+    document.getElementById('am-explanation-label').style.display = 'block';
+  } else {
+    explEl.style.display = 'none';
+    document.getElementById('am-explanation-label').style.display = 'none';
+  }
   const badge = document.getElementById('am-level-badge');
   badge.textContent = { critical: 'KRYTYCZNY', high: 'WYSOKI', info: 'INFORMACJA' }[info.level] || 'WYSOKI';
   badge.className = 'threat-level-badge ' + info.level;
@@ -2003,13 +3354,75 @@ function closeAlertModal(e) {
 // ============================================================
 // INIT
 // ============================================================
+let LICENSE_PLAN_LOCAL = 'home';
+let DEMO_MAX_DEVICES   = 5;
+
+function updateGatewayUI() {
+  // Header status
+  const statusEl = document.getElementById('status-text');
+  if (statusEl) {
+    statusEl.textContent = isGateway ? 'BRAMA SIECIOWA' : 'MONITORING AKTYWNY';
+  }
+  const badge = document.querySelector('.status-badge');
+  if (badge) {
+    if (isGateway) {
+      badge.style.background = 'rgba(0,255,136,0.12)';
+      badge.style.borderColor = 'rgba(0,255,136,0.4)';
+    }
+  }
+
+  // Baner trybu pod headerem
+  let gwBanner = document.getElementById('gateway-banner');
+  if (isGateway) {
+    if (!gwBanner) {
+      gwBanner = document.createElement('div');
+      gwBanner.id = 'gateway-banner';
+      gwBanner.style.cssText = 'background:linear-gradient(90deg,rgba(0,255,136,0.1),rgba(0,255,136,0.04));border-bottom:1px solid rgba(0,255,136,0.25);padding:7px 24px;display:flex;align-items:center;gap:16px;font-family:var(--mono);font-size:11px;color:var(--accent2);';
+      const demoBanner = document.getElementById('demo-banner');
+      demoBanner.parentNode.insertBefore(gwBanner, demoBanner.nextSibling);
+    }
+    gwBanner.innerHTML = `<span>⬡ TRYB: BRAMA SIECIOWA</span><span style="color:#8a9bb0;">WAN: ${gatewayWan || '—'}</span><span style="color:#8a9bb0;">LAN: ${gatewayLan || '—'}</span><span style="color:#8a9bb0;">Blokady i harmonogramy aktywne sieciowo</span>`;
+  } else if (gwBanner) {
+    gwBanner.remove();
+  }
+}
+
+async function checkLicense() {
+  try {
+    const r = await apiFetch('/api/license');
+    if (!r) return;
+    LICENSE_PLAN_LOCAL = r.plan || 'home';
+    DEMO_MAX_DEVICES   = r.max_devices || 5;
+    isGateway  = r.is_gateway  || false;
+    gatewayWan = r.wan_iface   || null;
+    gatewayLan = r.lan_iface   || null;
+    const banner = document.getElementById('demo-banner');
+    if (LICENSE_PLAN_LOCAL === 'free') {
+      banner.style.display = 'flex';
+      updateDemoDeviceCount();
+    } else {
+      banner.style.display = 'none';
+    }
+    updateGatewayUI();
+  } catch(e) {}
+}
+
+function updateDemoDeviceCount() {
+  if (LICENSE_PLAN_LOCAL !== 'free') return;
+  const el = document.getElementById('demo-dev-count');
+  if (el) el.textContent = `${devices.length}/${DEMO_MAX_DEVICES}`;
+}
+
 window.addEventListener('load', async () => {
   updateClock();
   setInterval(updateClock, 1000);
   await fetchToken();
+  await checkLicense();
   await fetchAll();
   setInterval(fetchAll, 30000);
   setInterval(fetchToken, 300000);
+  setInterval(checkLicense, 300000);
+  setInterval(simulateLiveData, 10000);
   showPage('overview');
 });
 </script>
@@ -2030,7 +3443,7 @@ window.addEventListener('load', async () => {
       <div class="modal-row"><span class="modal-key">Status</span><span class="modal-val" id="md-status">—</span></div>
       <div class="modal-row"><span class="modal-key">Ostatnio widziano</span><span class="modal-val" id="md-lastseen">—</span></div>
       <div class="modal-row"><span class="modal-key">Tag</span><span class="modal-val" id="md-tag">—</span></div>
-      <div class="modal-row"><span class="modal-key">Połączenie</span><span class="modal-val" id="md-connection">—</span></div>
+      <div class="modal-row"><span class="modal-key">Połączenie</span><span class="modal-val" style="display:flex;gap:8px;"><button id="conn-btn-wifi" class="conn-toggle" onclick="setConnection('wifi')">📶 Wi-Fi</button><button id="conn-btn-wired" class="conn-toggle" onclick="setConnection('wired')">🔌 Kabel</button></span></div>
 
       <div style="margin-top: 16px;">
         <div style="font-family: var(--mono); font-size: 11px; color: var(--text2); margin-bottom: 6px; letter-spacing: 1px;">NAZWA URZĄDZENIA</div>
@@ -2041,11 +3454,31 @@ window.addEventListener('load', async () => {
         </div>
       </div>
     </div>
-    <div class="modal-actions">
-      <button class="btn-primary" onclick="saveDeviceName()">💾 ZAPISZ NAZWĘ</button>
-      <button class="btn-success" id="md-trust-btn" onclick="trustDevice()">✓ OZNACZ JAKO ZAUFANE</button>
-      <button class="btn-danger" id="md-block-btn" onclick="blockDevice()">⊘ ZABLOKUJ</button>
-      <button class="btn-secondary" onclick="closeDeviceModal()">Zamknij</button>
+    <div style="margin:0 20px 14px;">
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <button class="btn-primary" onclick="saveDeviceName()" style="flex:1;">💾 ZAPISZ NAZWĘ</button>
+        <button class="btn-success" id="md-trust-btn" onclick="trustDevice()" style="flex:1;">✓ ZAUFANE</button>
+      </div>
+      <div style="border-top:1px solid rgba(255,255,255,0.07);padding-top:10px;">
+        <div id="md-control-label" style="font-family:var(--mono);font-size:10px;letter-spacing:1px;color:#a8bccc;margin-bottom:8px;">OZNACZENIA (monitor sieci — nie blokują ruchu sieciowego)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <button class="btn-primary" id="md-schedule-btn" style="background:rgba(139,92,246,0.3);border:1px solid rgba(139,92,246,0.5);color:#c4b0ff;font-size:12px;font-weight:600;" onclick="openScheduleModal()">🕒 HARMONOGRAM</button>
+          <button class="btn-primary" id="md-child-btn" style="background:rgba(245,158,11,0.25);border:1px solid rgba(245,158,11,0.5);color:#fcd34d;font-size:12px;font-weight:600;" onclick="toggleChild()">🧒 DZIECKO</button>
+          <button class="btn-secondary" id="md-unblock-btn" style="font-size:12px;font-weight:600;color:var(--text);grid-column:span 2;margin-left:0;width:100%;" onclick="unblockDevice()">⟲ ODZNACZ BLOKADĘ</button>
+          <button class="btn-danger" id="md-block-btn" style="background:rgba(255,51,102,0.25);border:1px solid rgba(255,51,102,0.4);color:#ff6b8a;font-size:12px;font-weight:600;grid-column:span 2;" onclick="blockDevice()">⊘ OZNACZ ZABLOKOWANE</button>
+        </div>
+        <div id="md-control-info" style="margin-top:10px;padding:8px 10px;background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.15);border-radius:6px;font-size:11px;color:#8ecae6;line-height:1.6;">
+          ℹ <strong>Tryb: Monitor sieci.</strong> Przyciski powyżej zapisują oznaczenia w dashboardzie. Rzeczywista blokada sieciowa działa tylko w trybie Gateway.
+        </div>
+      </div>
+      <div style="border-top:1px solid rgba(255,255,255,0.07);margin-top:12px;padding-top:10px;">
+        <div style="font-family:var(--mono);font-size:10px;letter-spacing:1px;color:#a8bccc;margin-bottom:8px;">OPIS OZNACZEŃ</div>
+        <div style="font-size:12px;color:#a0b4c6;line-height:1.8;">
+          <div><span style="color:#8b5cf6;font-weight:600;">🕒 HARMONOGRAM</span> — zapisuje godziny dostępu w dashboardzie. Odcięcie od internetu: tylko tryb Gateway.</div>
+          <div style="margin-top:4px;"><span style="color:#f59e0b;font-weight:600;">🧒 DZIECKO</span> — filtrowanie domen i SafeSearch. Działa gdy DNS przechodzi przez ten komputer.</div>
+          <div style="margin-top:4px;"><span style="color:#ff6b8a;font-weight:600;">⊘ OZNACZ ZABLOKOWANE</span> — widoczne w dashboardzie i alertach. Odcięcie od internetu: tylko tryb Gateway.</div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -2065,6 +3498,8 @@ window.addEventListener('load', async () => {
       <div class="modal-row"><span class="modal-key">Czas</span><span class="modal-val" id="am-time">—</span></div>
       <div class="modal-row"><span class="modal-key">Szczegóły</span><span class="modal-val" id="am-detail">—</span></div>
       <div id="am-desc" class="alert-threat-desc">Ładowanie opisu...</div>
+      <div id="am-explanation-label" style="display:none;font-size:10px;letter-spacing:.08em;color:var(--accent);margin-top:10px;margin-bottom:2px;">🔍 WYJAŚNIENIE AI (NetGuard Explainer)</div>
+      <div id="am-explanation" style="display:none;font-size:13px;color:var(--text1);background:rgba(0,200,240,0.07);border-left:2px solid var(--accent);padding:8px 10px;border-radius:4px;line-height:1.5;"></div>
       <div id="am-level-badge" class="threat-level-badge high">HIGH</div>
       <div id="am-recommendations" style="display:none;"></div>
     </div>
@@ -2100,6 +3535,75 @@ window.addEventListener('load', async () => {
     </div>
   </div>
 </div>
+</div>
+
+<!-- ── MODAL: Harmonogram (Kontrola Rodzicielska) ───────────────────── -->
+<div class="modal-overlay" id="schedule-modal-overlay" onclick="if(event.target===this) this.classList.remove('open')">
+  <div class="modal" id="schedule-modal" style="max-width:380px;">
+    <div class="modal-header">
+      <div class="modal-title">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        HARMONOGRAM DOSTĘPU
+      </div>
+      <button class="modal-close" onclick="document.getElementById('schedule-modal-overlay').classList.remove('open')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--text2);margin-bottom:12px;">
+        Ustaw godziny dostępu dla: <br/><strong id="sch-mac-display" style="color:var(--text)"></strong>
+      </p>
+      <div style="margin-bottom:14px;padding:8px 10px;background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,0.2);border-radius:6px;font-size:11px;color:#8ecae6;line-height:1.6;">
+        ℹ <strong>Tryb: Monitor sieci.</strong> Harmonogram jest zapisywany i widoczny w dashboardzie. Rzeczywiste odcięcie od internetu działa tylko w trybie Gateway (NetGuard na NanoPi R2S / RPi przed routerem).
+      </div>
+      <div style="display:flex; justify-content:space-between; margin-bottom: 12px;">
+          <div style="flex:1;">
+            <div style="font-family:var(--mono);font-size:11px;color:var(--text2);margin-bottom:6px;">DOSTĘP OD (GG:MM)</div>
+            <input class="modal-input" id="sch-start-input" type="time" style="width: 90%; color-scheme: dark;"/>
+          </div>
+          <div style="flex:1;">
+            <div style="font-family:var(--mono);font-size:11px;color:var(--text2);margin-bottom:6px;">DOSTĘP DO (GG:MM)</div>
+            <input class="modal-input" id="sch-end-input" type="time" style="width: 90%; color-scheme: dark;"/>
+          </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-primary" onclick="submitSchedule()">ZAPISZ HARMONOGRAM</button>
+      <button class="btn-danger" style="background:#555;" onclick="clearSchedule()">USUŃ</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Mobile bottom navigation bar ──────────────────────── -->
+<nav class="mobile-nav" id="mobile-nav">
+  <button class="mobile-nav-item active" id="mn-overview" onclick="showPage('overview')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+    PULPIT
+  </button>
+  <button class="mobile-nav-item" id="mn-devices" onclick="showPage('devices')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+    URZĄDZENIA
+  </button>
+  <button class="mobile-nav-item" id="mn-alerts" onclick="showPage('alerts')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    ALERTY
+  </button>
+  <button class="mobile-nav-item" id="mn-threats" onclick="showPage('threats')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    ZAGROŻENIA
+  </button>
+  <button class="mobile-nav-item" id="mn-parental" onclick="showPage('parental')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    RODZINA
+  </button>
+</nav>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .catch(e => console.warn('SW:', e));
+  });
+}
+</script>
 
 </body>
 </html>

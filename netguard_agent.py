@@ -326,8 +326,8 @@ DASHBOARD_TOKEN = _get_or_create_token()
 # zakup licencję NetGuard Home na stronie https://netguardhome.pl
 
 FREE_LIMITS = {
-    "max_devices": 25,
-    "history_days": 30,
+    "max_devices": 5,
+    "history_days": 7,
 }
 
 # Plan aktywny przy starcie (Wymuszone zawsze na FREE w wersji otwartoźródłowej)
@@ -493,6 +493,10 @@ class NetworkScanner:
         for sent, received in result:
             mac = received.hwsrc
             ip  = received.psrc
+            # Pomiń adresy multicast, broadcast i link-local
+            ip_obj = ipaddress.ip_address(ip)
+            if ip_obj.is_multicast or ip_obj.is_link_local:
+                continue
             vendor = self._get_vendor(mac)
             hostname = CONFIG["device_names"].get(mac) or self._resolve_hostname(ip)
             tag = "trusted" if mac in CONFIG["trusted_macs"] else "new"
@@ -1377,6 +1381,8 @@ def start_dashboard(scanner: 'NetworkScanner', analyzer: 'PacketAnalyzer',
         cprint("WARN", "Flask niedostępny — dashboard wyłączony. pip install flask")
         return
 
+    _dash_start = time.time()
+
     import os as _os
     script_dir = _os.path.dirname(_os.path.abspath(__file__))
     app = Flask(__name__, static_folder=script_dir)
@@ -1577,6 +1583,22 @@ def start_dashboard(scanner: 'NetworkScanner', analyzer: 'PacketAnalyzer',
             "max_devices": None if IS_HOME else FREE_LIMITS["max_devices"],
             "history_days": None if IS_HOME else FREE_LIMITS["history_days"],
             "upgrade_url": "https://netguardhome.pl/#cennik",
+        })
+
+    @app.route('/api/system')
+    def api_system():
+        cpu = psutil.cpu_percent(interval=None) if PSUTIL_AVAILABLE else 0
+        mem = psutil.virtual_memory() if PSUTIL_AVAILABLE else None
+        ping_ms = int(time.time() * 1000)
+        return jsonify({
+            'cpu_pct': round(cpu, 1),
+            'ram_used_mb': mem.used // (1024 * 1024) if mem else 0,
+            'ram_total_mb': mem.total // (1024 * 1024) if mem else 0,
+            'ram_pct': round(mem.percent, 1) if mem else 0,
+            'temp_c': None,
+            'uptime_sec': int(time.time() - _dash_start),
+            'agent_version': '1.5.0',
+            'ping_ms': int((time.time() * 1000) - ping_ms),
         })
 
     @app.route('/')
