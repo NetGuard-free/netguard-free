@@ -295,6 +295,7 @@ pause
         $Shortcut.TargetPath       = "$NETGUARD_DIR\start.bat"
         $Shortcut.WorkingDirectory = $NETGUARD_DIR
         $Shortcut.Description      = "NetGuard - Agent Sieci Domowej"
+        $Shortcut.IconLocation     = "$NETGUARD_DIR\netguard.ico, 0"
         $Shortcut.Save()
         $bytes = [System.IO.File]::ReadAllBytes($lnkPath)
         $bytes[0x15] = $bytes[0x15] -bor 0x20
