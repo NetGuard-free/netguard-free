@@ -369,6 +369,46 @@ EOF
     ok "Launchd skonfigurowany"
 }
 
+launch_after_install() {
+    step "Uruchamianie NetGuard..."
+
+    # Start agenta
+    if [[ "$OS" == "linux" ]] && command -v systemctl &>/dev/null; then
+        sudo systemctl start netguard 2>/dev/null || true
+    elif [[ $EUID -eq 0 ]]; then
+        nohup "$VENV_DIR/bin/python3" "$NETGUARD_DIR/netguard_agent.py" --dashboard \
+            >> "$NETGUARD_DIR/netguard.log" 2>&1 &
+    else
+        sudo nohup "$VENV_DIR/bin/python3" "$NETGUARD_DIR/netguard_agent.py" --dashboard \
+            >> "$NETGUARD_DIR/netguard.log" 2>&1 &
+    fi
+
+    # Czekaj aż dashboard odpowie (max 20s)
+    local URL="http://localhost:8767"
+    printf "  Czekam na start agenta"
+    for i in $(seq 1 20); do
+        sleep 1
+        "$VENV_DIR/bin/python3" -c \
+            "import urllib.request; urllib.request.urlopen('$URL', timeout=1)" \
+            2>/dev/null && break || printf "."
+    done
+    echo ""
+    ok "Agent uruchomiony — dashboard: $URL"
+
+    # Otwórz przeglądarkę jako użytkownik (nie root)
+    if [[ "$OS" == "macos" ]]; then
+        open "$URL" 2>/dev/null || true
+    elif [[ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]]; then
+        if [[ -n "${SUDO_USER:-}" ]]; then
+            sudo -u "$SUDO_USER" DISPLAY="${DISPLAY:-:0}" xdg-open "$URL" 2>/dev/null || true
+        else
+            xdg-open "$URL" 2>/dev/null || true
+        fi
+    else
+        info "Otwórz ręcznie w przeglądarce: $URL"
+    fi
+}
+
 print_summary() {
     echo ""
     echo -e "${GREEN}╔════════════════════════════════════════════════╗${NC}"
@@ -408,6 +448,7 @@ main() {
     setup_systemd
     setup_launchd
     print_summary
+    launch_after_install
 }
 
 main "$@"
