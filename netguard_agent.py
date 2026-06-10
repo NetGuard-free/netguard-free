@@ -488,13 +488,34 @@ class NetworkScanner:
             "Przejdź na Home aby monitorować bez limitu — netguardhome.pl")
         return result
 
+    def _ensure_host(self, devices: dict, iface: str) -> None:
+        """Dodaje własny komputer jako host do listy urządzeń (in-place)."""
+        host_ip  = self._get_own_ip(iface)
+        host_mac = self._get_own_mac(iface)
+        if not (host_ip and host_mac):
+            return
+        if host_mac not in devices:
+            devices[host_mac] = {
+                "ip": host_ip, "mac": host_mac,
+                "vendor": self._get_vendor(host_mac),
+                "hostname": CONFIG["device_names"].get(host_mac) or socket.gethostname(),
+                "status": "online", "is_host": True, "tag": "trusted",
+            }
+        else:
+            devices[host_mac]["is_host"] = True
+            devices[host_mac]["tag"] = "trusted"
+            devices[host_mac]["hostname"] = CONFIG["device_names"].get(host_mac) or socket.gethostname()
+
     def scan(self) -> dict:
         """Skanuj sieć przez ARP i zwróć listę urządzeń"""
+        iface = self.interface if self.interface and self.interface != 'auto' else self.get_interface()
+
         if not SCAPY_AVAILABLE:
-            self.active_devices = self._apply_limit(self._fallback_scan())
+            devices = self._fallback_scan()
+            self._ensure_host(devices, iface)
+            self.active_devices = self._apply_limit(devices)
             return self.active_devices
 
-        iface = self.interface if self.interface and self.interface != 'auto' else self.get_interface()
         cprint("INFO", f"Skanowanie sieci {self.network} przez {iface}...")
 
         try:
@@ -504,14 +525,15 @@ class NetworkScanner:
             result = srp(packet, timeout=3, iface=iface, verbose=False)[0]
         except Exception as e:
             cprint("WARN", f"Błąd skanowania ARP: {e}")
-            self.active_devices = self._apply_limit(self._fallback_scan())
+            devices = self._fallback_scan()
+            self._ensure_host(devices, iface)
+            self.active_devices = self._apply_limit(devices)
             return self.active_devices
 
         devices = {}
         for sent, received in result:
             mac = received.hwsrc
             ip  = received.psrc
-            # Pomiń adresy multicast, broadcast i link-local
             ip_obj = ipaddress.ip_address(ip)
             if ip_obj.is_multicast or ip_obj.is_link_local:
                 continue
@@ -521,29 +543,10 @@ class NetworkScanner:
             devices[mac] = {
                 "ip": ip, "mac": mac, "vendor": vendor,
                 "hostname": hostname,
-                "status": "online",
-                "is_host": False,
-                "tag": tag,
+                "status": "online", "is_host": False, "tag": tag,
             }
 
-        # Dodaj własny komputer (host) jeśli go nie ma
-        host_ip = self._get_own_ip(iface)
-        host_mac = self._get_own_mac(iface)
-        if host_ip and host_mac and host_mac not in devices:
-            devices[host_mac] = {
-                "ip": host_ip,
-                "mac": host_mac,
-                "vendor": self._get_vendor(host_mac),
-                "hostname": CONFIG["device_names"].get(host_mac) or socket.gethostname(),
-                "status": "online",
-                "is_host": True,
-                "tag": "trusted",
-            }
-        elif host_mac and host_mac in devices:
-            devices[host_mac]["is_host"] = True
-            devices[host_mac]["tag"] = "trusted"
-            devices[host_mac]["hostname"] = CONFIG["device_names"].get(host_mac) or socket.gethostname()
-
+        self._ensure_host(devices, iface)
         self.active_devices = self._apply_limit(devices)
 
         cprint("OK", f"Znaleziono {len(self.active_devices)} urządzeń w sieci")
