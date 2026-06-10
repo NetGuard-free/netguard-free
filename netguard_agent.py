@@ -2,7 +2,7 @@
 """
 ╔══════════════════════════════════════════════════════════════╗
 ║         NETGUARD — Lokalny Agent Sieci Domowej               ║
-║         Wersja: Free Edition (limit 25 urządzeń)             ║
+║         Wersja: Free Edition (limit 5 urządzeń)              ║
 ║         Licencja: Business Source License 1.1 (BSL)          ║
 ║         Autor: Arkadiusz Dragun (NetGuardHome)               ║
 ╚══════════════════════════════════════════════════════════════╝
@@ -951,7 +951,19 @@ class RouterSync:
         new_count = 0
 
         for mac, ip in arp_devices.items():
+            # Pomiń adresy multicast i link-local
+            try:
+                ip_obj = ipaddress.ip_address(ip)
+                if ip_obj.is_multicast or ip_obj.is_link_local:
+                    continue
+            except ValueError:
+                continue
             if mac not in self.scanner.active_devices:
+                # Limit Free — nie dodawaj nowych urzadzen poza limit
+                if not IS_HOME and len(self.scanner.active_devices) >= FREE_LIMITS["max_devices"]:
+                    is_trusted = mac in CONFIG["trusted_macs"]
+                    if not is_trusted:
+                        continue
                 name = CONFIG["device_names"].get(mac) or f"Urządzenie ({ip})"
                 tag  = "trusted" if mac in CONFIG["trusted_macs"] else "new"
                 self.scanner.active_devices[mac] = {
