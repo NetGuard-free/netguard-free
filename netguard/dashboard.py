@@ -81,13 +81,17 @@ def start_dashboard(scanner, analyzer, ai, port: int = 8767,
     def require_token(f):
         @wraps(f)
         def decorated(*args, **kwargs):
-            token = (request.headers.get("X-NetGuard-Token") or
-                     request.args.get("token") or
-                     (request.json or {}).get("token", "") if request.is_json else "")
-            if token != DASHBOARD_TOKEN:
-                return jsonify({"error": "Brak autoryzacji — nieprawidlowy token"}), 403
-            if not _is_admin_session(request):
-                return jsonify({"error": "Wymagane logowanie administratora", "need_admin": True}), 401
+            is_admin = _is_admin_session(request)
+            if not is_admin:
+                token = (request.headers.get("X-NetGuard-Token") or
+                         request.args.get("token") or
+                         (request.json or {}).get("token", "") if request.is_json else "")
+                if token != DASHBOARD_TOKEN:
+                    if request.method in ("POST", "PUT", "DELETE"):
+                        return jsonify({"error": "Wymagane logowanie administratora", "need_admin": True}), 401
+                    return jsonify({"error": "Brak autoryzacji — nieprawidlowy token"}), 403
+                if request.method in ("POST", "PUT", "DELETE"):
+                    return jsonify({"error": "Wymagane logowanie administratora", "need_admin": True}), 401
             if request.method in ("POST", "PUT", "DELETE"):
                 csrf = (request.headers.get("X-CSRF-Token") or
                         (request.json or {}).get("csrf_token", "") if request.is_json else "")
@@ -611,7 +615,7 @@ def start_dashboard(scanner, analyzer, ai, port: int = 8767,
         addr = request.remote_addr or ''
         local_prefixes = ('127.', '::1', '10.', '172.', '192.168.')
         is_local = addr in ('127.0.0.1', '::1') or any(addr.startswith(p) for p in local_prefixes)
-        if not is_local:
+        if not is_local and not _is_admin_session(request):
             return jsonify({"error": "Dostep tylko z sieci lokalnej"}), 403
         return jsonify({"token": DASHBOARD_TOKEN})
 
@@ -799,7 +803,7 @@ def start_dashboard(scanner, analyzer, ai, port: int = 8767,
         dashboard = os.path.join(script_dir, '..', 'strony_podstrony', 'network-agent-dashboard.html')
         if os.path.exists(dashboard):
             return send_from_directory(os.path.join(script_dir, '..', 'strony_podstrony'), 'network-agent-dashboard.html')
-        return "<h1>NetGuard AI API</h1>"
+        return '<!DOCTYPE html><html lang="pl"><head><meta charset="utf-8"><title>NetGuard — dashboard</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:system-ui,-apple-system,sans-serif;background:#0b1120;color:#c8d6e5;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:20px;text-align:center}h1{color:#00d4ff;margin-bottom:8px;font-size:24px}p{color:#6b8299;margin-bottom:20px;font-size:14px}.links{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}.links a{background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.2);border-radius:8px;padding:12px 18px;color:#00d4ff;text-decoration:none;font-size:13px;transition:background 0.2s}.links a:hover{background:rgba(0,212,255,0.2)}.note{margin-top:24px;font-size:12px;color:#4a6080}</style></head><body><h1>&#x1f6e1; NetGuard</h1><p>Dashboard nie zosta&#x142; znaleziony. API jest dost&#x119;pne:</p><div class="links"><a href=\'/api/devices\'>&#x1f4e1; Urz&#x105;dzenia</a><a href=\'/api/alerts\'>&#x26a0;&#xfe0f; Alerty</a><a href=\'/api/stats\'>&#x1f4ca; Statystyki</a><a href=\'/api/system\'>&#x1f527; System</a></div></body></html>"'
 
     use_https = cfg.get("dashboard_https", False)
     cert_file = os.path.join(script_dir, '..', 'dashboard.crt')
