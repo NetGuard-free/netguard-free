@@ -271,27 +271,41 @@ LAUNCHER
     ok "start.sh"
 
     if [[ "$OS" == "linux" ]]; then
-        DESKTOP_FILE="$HOME/.local/share/applications/netguard.desktop"
-        mkdir -p "$HOME/.local/share/applications"
+        # Gdy instalacja przez sudo, użyj katalogu domowego oryginalnego usera
+        if [[ -n "${SUDO_USER:-}" ]]; then
+            REAL_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
+        else
+            REAL_HOME="$HOME"
+        fi
+
+        ICON_PATH="$NETGUARD_DIR/netguard_logo.svg"
+        [[ -f "$ICON_PATH" ]] || ICON_PATH="network-wired"
+
+        DESKTOP_FILE="$REAL_HOME/.local/share/applications/netguard.desktop"
+        mkdir -p "$REAL_HOME/.local/share/applications"
         cat > "$DESKTOP_FILE" << EOF
 [Desktop Entry]
 Name=NetGuard
 Comment=Lokalny agent monitorowania sieci domowej
 Exec=bash -c 'sudo $NETGUARD_DIR/start.sh'
-Icon=network-wired
+Icon=$ICON_PATH
 Terminal=true
 Type=Application
 Categories=Network;Security;
 Keywords=sieć;bezpieczeństwo;monitor;wifi;
 EOF
         chmod +x "$DESKTOP_FILE"
+        [[ -n "${SUDO_USER:-}" ]] && chown "$SUDO_USER" "$DESKTOP_FILE" 2>/dev/null || true
         ok "Skrót w menu aplikacji (NetGuard)"
 
-        for DESKTOP_DIR in "$HOME/Desktop" "$HOME/Pulpit" "$HOME/Biurko"; do
+        for DESKTOP_DIR in "$REAL_HOME/Desktop" "$REAL_HOME/Pulpit" "$REAL_HOME/Biurko"; do
             if [[ -d "$DESKTOP_DIR" ]]; then
                 cp "$DESKTOP_FILE" "$DESKTOP_DIR/netguard.desktop"
                 chmod +x "$DESKTOP_DIR/netguard.desktop"
-                ok "Skrót na pulpicie"
+                # Oznacz jako zaufany (GNOME 3.22+) — eliminuje dialog "czy uruchomić"
+                gio set "$DESKTOP_DIR/netguard.desktop" metadata::trusted true 2>/dev/null || true
+                [[ -n "${SUDO_USER:-}" ]] && chown "$SUDO_USER" "$DESKTOP_DIR/netguard.desktop" 2>/dev/null || true
+                ok "Ikona NetGuard na pulpicie"
                 break
             fi
         done
