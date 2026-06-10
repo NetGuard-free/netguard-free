@@ -186,6 +186,10 @@ run_wizard() {
     step "Konfiguracja NetGuard..."
     echo ""
 
+    # Gdy skrypt jest pipowany przez curl, stdin to pipe (EOF) a nie terminal.
+    # exec </dev/tty przekierowuje stdin tej funkcji na terminal — read działa normalnie.
+    exec </dev/tty 2>/dev/null || true
+
     if command -v ip &>/dev/null; then
         DEFAULT_IFACE=$(ip route show default 2>/dev/null | awk '/default/ {print $5}' | head -1)
         DEFAULT_NET=$(ip route show 2>/dev/null | grep -v default | grep "$DEFAULT_IFACE" | awk '{print $1}' | head -1)
@@ -204,18 +208,13 @@ run_wizard() {
     echo -e "  Wykryto sieć:      ${CYAN}$DEFAULT_NET${NC}"
     echo ""
 
-    # Gdy skrypt jest pipowany przez curl, stdin to pipe a nie terminal —
-    # przekierowanie z /dev/tty pozwala normalnie czytać wejście użytkownika
-    local TTY_IN="/dev/stdin"
-    [[ -e /dev/tty ]] && TTY_IN="/dev/tty"
-
-    read -p "  Podaj adres email do powiadomień (Enter aby pominąć): " USER_EMAIL <"$TTY_IN"
+    read -p "  Podaj adres email do powiadomień (Enter aby pominąć): " USER_EMAIL
     echo ""
 
     echo -e "  Ustaw hasło do panelu admina:"
     while true; do
-        read -s -p "  Hasło: " PWD1 <"$TTY_IN"; echo ""
-        read -s -p "  Powtórz hasło: " PWD2 <"$TTY_IN"; echo ""
+        read -s -p "  Hasło: " PWD1; echo ""
+        read -s -p "  Powtórz hasło: " PWD2; echo ""
         [[ "$PWD1" == "$PWD2" ]] && break
         warn "Hasła nie są identyczne. Spróbuj ponownie."
     done
