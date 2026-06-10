@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================
-#  NetGuard AI — Instalator (Linux / macOS / Raspberry Pi)
+#  NetGuard — Instalator (Linux / macOS / Raspberry Pi)
 #  Wersja modułowa (Free Edition)
 #  https://github.com/NetGuard-free/netguard-free
 # ============================================================
@@ -242,7 +242,7 @@ LAUNCHER
         mkdir -p "$HOME/.local/share/applications"
         cat > "$DESKTOP_FILE" << EOF
 [Desktop Entry]
-Name=NetGuard AI
+Name=NetGuard
 Comment=Lokalny agent monitorowania sieci domowej
 Exec=bash -c 'sudo $NETGUARD_DIR/start.sh'
 Icon=network-wired
@@ -252,7 +252,7 @@ Categories=Network;Security;
 Keywords=sieć;bezpieczeństwo;monitor;wifi;
 EOF
         chmod +x "$DESKTOP_FILE"
-        ok "Skrót w menu aplikacji (NetGuard AI)"
+        ok "Skrót w menu aplikacji (NetGuard)"
 
         for DESKTOP_DIR in "$HOME/Desktop" "$HOME/Pulpit" "$HOME/Biurko"; do
             if [[ -d "$DESKTOP_DIR" ]]; then
@@ -274,7 +274,7 @@ setup_systemd() {
 
     sudo tee /etc/systemd/system/netguard.service > /dev/null << EOF
 [Unit]
-Description=NetGuard AI — Agent Sieci Domowej
+Description=NetGuard — Agent Sieci Domowej
 After=network.target
 Wants=network-online.target
 
@@ -336,7 +336,7 @@ EOF
 print_summary() {
     echo ""
     echo -e "${GREEN}╔════════════════════════════════════════════════╗${NC}"
-    echo -e "${GREEN}║       NetGuard AI — instalacja zakończona!      ║${NC}"
+    echo -e "${GREEN}║       NetGuard — instalacja zakończona!      ║${NC}"
     echo -e "${GREEN}╚════════════════════════════════════════════════╝${NC}"
     echo ""
     echo -e "  ${CYAN}Jak uruchomić:${NC}"

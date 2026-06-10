@@ -1,5 +1,5 @@
 # ============================================================
-#  NetGuard AI - Instalator Windows (PowerShell)
+#  NetGuard - Instalator Windows (PowerShell)
 #  Wersja modułowa (Free Edition)
 #  Uruchom jako Administrator w PowerShell:
 #  Set-ExecutionPolicy Bypass -Scope Process -Force
@@ -27,7 +27,7 @@ function Write-Banner {
     Clear-Host
     Write-Host ""
     Write-Host "  +--------------------------------------------------+" -ForegroundColor Cyan
-    Write-Host "  |        N E T G U A R D   A I                    |" -ForegroundColor Cyan
+    Write-Host "  |        N E T G U A R D                          |" -ForegroundColor Cyan
     Write-Host "  |        Agent Sieci Domowej  v$NETGUARD_VERSION              |" -ForegroundColor Cyan
     Write-Host "  |        Instalator Windows (modułowy)             |" -ForegroundColor Cyan
     Write-Host "  +--------------------------------------------------+" -ForegroundColor Cyan
@@ -160,10 +160,13 @@ function Download-Files {
             Invoke-WebRequest -Uri $PKG_URL -OutFile $zipFile -UseBasicParsing
             if (Get-Command Expand-Archive -ErrorAction SilentlyContinue) {
                 Expand-Archive -Path $zipFile -DestinationPath "$env:TEMP\netguard-pkg" -Force
-                if (Test-Path "$env:TEMP\netguard-pkg\netguard-pkg-1.5.0") {
-                    Move-Item "$env:TEMP\netguard-pkg\netguard-pkg-1.5.0\*" $NETGUARD_DIR\ -Force
+                $pkgRoot = "$env:TEMP\netguard-pkg"
+                $subdirs = Get-ChildItem -Path $pkgRoot -Directory
+                if ($subdirs.Count -eq 1) {
+                    # zip ma jeden katalog nadrzedny (np. netguard-free/) — wyciagnij jego zawartosc
+                    Move-Item "$($subdirs[0].FullName)\*" $NETGUARD_DIR\ -Force
                 } else {
-                    Move-Item "$env:TEMP\netguard-pkg\*" $NETGUARD_DIR\ -Force
+                    Move-Item "$pkgRoot\*" $NETGUARD_DIR\ -Force
                 }
                 Remove-Item "$env:TEMP\netguard-pkg" -Recurse -Force -ErrorAction SilentlyContinue
             } else {
@@ -177,7 +180,12 @@ function Download-Files {
                     if ($_.Name) { [System.IO.Compression.ZipFileExtensions]::ExtractToFile($_, $target, $true) }
                 }
                 $zip.Dispose()
-                Move-Item "$dest\netguard-pkg-1.5.0\*" $NETGUARD_DIR\ -Force
+                $subdirs = Get-ChildItem -Path $dest -Directory
+                if ($subdirs.Count -eq 1) {
+                    Move-Item "$($subdirs[0].FullName)\*" $NETGUARD_DIR\ -Force
+                } else {
+                    Move-Item "$dest\*" $NETGUARD_DIR\ -Force
+                }
                 Remove-Item $dest -Recurse -Force -ErrorAction SilentlyContinue
             }
             Remove-Item $zipFile -Force -ErrorAction SilentlyContinue
@@ -252,9 +260,9 @@ function Create-Launcher {
 
     @"
 @echo off
-title NetGuard AI
+title NetGuard
 cd /d "%USERPROFILE%\netguard"
-echo  Uruchamianie NetGuard AI...
+echo  Uruchamianie NetGuard...
 echo  Dashboard bedzie dostepny pod: http://localhost:8767
 echo.
 "%USERPROFILE%\netguard-env\Scripts\python.exe" netguard_agent.py --dashboard
@@ -281,12 +289,12 @@ pause
     }
 
     try {
-        $lnkPath = "$env:USERPROFILE\Desktop\NetGuard AI.lnk"
+        $lnkPath = "$env:USERPROFILE\Desktop\NetGuard.lnk"
         $WshShell = New-Object -ComObject WScript.Shell
         $Shortcut = $WshShell.CreateShortcut($lnkPath)
         $Shortcut.TargetPath       = "$NETGUARD_DIR\start.bat"
         $Shortcut.WorkingDirectory = $NETGUARD_DIR
-        $Shortcut.Description      = "NetGuard AI - Agent Sieci Domowej"
+        $Shortcut.Description      = "NetGuard - Agent Sieci Domowej"
         $Shortcut.Save()
         $bytes = [System.IO.File]::ReadAllBytes($lnkPath)
         $bytes[0x15] = $bytes[0x15] -bor 0x20
@@ -318,12 +326,12 @@ function Setup-TaskScheduler {
             -RunLevel Highest
 
         Register-ScheduledTask `
-            -TaskName "NetGuard AI" `
+            -TaskName "NetGuard" `
             -Action $action `
             -Trigger $trigger `
             -Settings $settings `
             -Principal $principal `
-            -Description "NetGuard AI - Agent monitorowania sieci domowej" `
+            -Description "NetGuard - Agent monitorowania sieci domowej" `
             -Force | Out-Null
 
         Write-OK "Task Scheduler skonfigurowany - NetGuard startuje przy logowaniu"
@@ -336,11 +344,11 @@ function Setup-TaskScheduler {
 function Print-Summary {
     Write-Host ""
     Write-Host "  ╔════════════════════════════════════════════════╗" -ForegroundColor Green
-    Write-Host "  ║       NetGuard AI - instalacja zakonczona!      ║" -ForegroundColor Green
+    Write-Host "  ║       NetGuard - instalacja zakonczona!      ║" -ForegroundColor Green
     Write-Host "  ╚════════════════════════════════════════════════╝" -ForegroundColor Green
     Write-Host ""
     Write-Host "  Jak uruchomic:" -ForegroundColor Cyan
-    Write-Host "  Kliknij dwukrotnie: NetGuard AI (skrot na pulpicie)" -ForegroundColor Yellow
+    Write-Host "  Kliknij dwukrotnie: NetGuard (skrot na pulpicie)" -ForegroundColor Yellow
     Write-Host "  lub uruchom: $NETGUARD_DIR\start.bat" -ForegroundColor Yellow
     Write-Host ""
     Write-Host "  Dashboard (po uruchomieniu):" -ForegroundColor Cyan
