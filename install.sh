@@ -138,23 +138,21 @@ setup_venv() {
     mkdir -p "$NETGUARD_DIR"
     ok "Katalog $NETGUARD_DIR"
 
-    if [[ ! -d "$VENV_DIR" ]]; then
-        $PYTHON_CMD -m venv "$VENV_DIR"
+    if [[ ! -f "$VENV_DIR/bin/activate" ]]; then
+        $PYTHON_CMD -m venv "$VENV_DIR" || fail "Nie można utworzyć środowiska Python. Spróbuj: sudo apt install python3-venv"
         ok "Virtualenv w $VENV_DIR"
     else
         info "Virtualenv już istnieje — pomijam"
     fi
 
-    source "$VENV_DIR/bin/activate"
-
-    pip install --upgrade pip --quiet
+    "$VENV_DIR/bin/pip" install --upgrade pip --quiet
     ok "pip zaktualizowany"
 }
 
 install_python_deps() {
     step "Instalowanie bibliotek Python..."
 
-    pip install --quiet \
+    "$VENV_DIR/bin/pip" install --quiet \
         scapy \
         psutil \
         flask \
@@ -252,9 +250,8 @@ if [[ $EUID -ne 0 ]]; then
     exec sudo bash "$0" "$@"
 fi
 
-source "$VENV/bin/activate"
 cd "$SCRIPT_DIR"
-exec python3 netguard_agent.py --dashboard "$@"
+exec "$VENV/bin/python3" netguard_agent.py --dashboard "$@"
 LAUNCHER
 
     chmod +x "$NETGUARD_DIR/start.sh"
