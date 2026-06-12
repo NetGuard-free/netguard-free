@@ -1,10 +1,10 @@
-<!DOCTYPE html>
-<!-- 
-  NETGUARD — Lokalny Agent Sieci Domowej 
+<!--
+  NETGUARD — Lokalny Agent Sieci Domowej
   Wersja: Free Edition (limit 5 urządzeń)
-  Licencja: Business Source License 1.1 (BSL)      
+  Licencja: Business Source License 1.1 (BSL)
   Autor: Arkadiusz Dragun (NetGuardHome)
 -->
+<!DOCTYPE html>
 <html lang="pl">
 <head>
 <meta charset="UTF-8">
@@ -836,6 +836,32 @@
   <a href="https://netguardhome.pl/#cennik" target="_blank" style="font-family:var(--mono);font-size:11px;color:var(--accent);border:1px solid rgba(0,212,255,0.4);padding:4px 12px;border-radius:4px;white-space:nowrap;text-decoration:none;">Przejdź na Home →</a>
 </div>
 
+<!-- TRIAL BANNER — widoczny tylko w trakcie trialu -->
+<div id="trial-banner" style="display:none;background:linear-gradient(90deg,rgba(0,212,255,0.1),rgba(0,232,135,0.06));border-bottom:1px solid rgba(0,212,255,0.3);padding:8px 24px;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+  <div style="font-family:var(--mono);font-size:12px;color:var(--accent);display:flex;align-items:center;gap:10px;">
+    <span>◈</span>
+    <span>TRIAL HOME — <strong id="trial-days-left">?</strong> dni pozostało · Masz dostęp do wszystkich funkcji</span>
+  </div>
+  <a href="https://buy.stripe.com/00wfZhaRy22fcqjb2IgIo07" target="_blank" style="font-family:var(--mono);font-size:11px;color:var(--accent2);border:1px solid rgba(0,232,135,0.4);padding:4px 12px;border-radius:4px;white-space:nowrap;text-decoration:none;">Kup Home — 149 zł →</a>
+</div>
+
+<!-- MODAL — wygaśnięcie trialu -->
+<div id="trial-expired-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:#0d1520;border:1px solid rgba(0,212,255,0.25);border-radius:12px;padding:36px 40px;max-width:460px;width:90%;font-family:var(--mono);">
+    <div style="font-size:11px;letter-spacing:2px;color:var(--warn);margin-bottom:12px;">⚠ TRIAL WYGASŁ</div>
+    <div style="font-size:20px;font-weight:700;color:var(--fg);margin-bottom:8px;">Twój 7-dniowy trial dobiegł końca</div>
+    <div style="font-size:13px;color:rgba(245,242,236,0.65);line-height:1.6;margin-bottom:24px;">Dashboard działa w trybie Free (5 urządzeń, bez AI Chat). Kup NetGuard Home aby odblokować pełne funkcje.</div>
+    <a href="https://buy.stripe.com/00wfZhaRy22fcqjb2IgIo07" target="_blank" style="display:block;background:linear-gradient(135deg,rgba(0,212,255,0.25),rgba(0,232,135,0.15));border:1px solid rgba(0,212,255,0.5);color:var(--accent);text-decoration:none;padding:14px 20px;border-radius:8px;text-align:center;font-size:14px;font-weight:700;letter-spacing:0.5px;margin-bottom:16px;">Kup NetGuard Home — 149 zł →</a>
+    <div style="font-size:11px;color:rgba(245,242,236,0.4);margin-bottom:8px;letter-spacing:1px;">MASZ JUŻ KLUCZ LICENCYJNY?</div>
+    <div style="display:flex;gap:8px;">
+      <input id="trial-license-input" type="text" placeholder="NGHO-XXXX-XXXX-XXXX-XXXX-XXXX" style="flex:1;background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:10px 12px;color:var(--fg);font-family:var(--mono);font-size:12px;outline:none;" />
+      <button onclick="activateTrialLicense()" style="background:rgba(0,232,135,0.2);border:1px solid rgba(0,232,135,0.4);color:var(--accent2);padding:10px 16px;border-radius:6px;cursor:pointer;font-family:var(--mono);font-size:12px;white-space:nowrap;">Aktywuj</button>
+    </div>
+    <div id="trial-license-msg" style="font-size:11px;margin-top:8px;min-height:16px;"></div>
+    <button onclick="closeTrialExpiredModal()" style="margin-top:20px;background:none;border:none;color:rgba(245,242,236,0.35);font-family:var(--mono);font-size:11px;cursor:pointer;text-decoration:underline;">Kontynuuj w wersji Free</button>
+  </div>
+</div>
+
 <div class="layout">
   <!-- Sidebar -->
   <nav class="sidebar">
@@ -1218,28 +1244,6 @@
             <button class="tab" onclick="hdlThreats()">Zagrożenia 24h</button>
             <button class="tab" onclick="hdlIDS()">Status IDS</button>
             <button class="tab" onclick="hdlReport()">Raport 24h</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- UPGRADE PAGE (Free plan — premium feature blocked) -->
-      <div class="page" id="page-upgrade">
-        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:65vh;text-align:center;padding:24px 16px;">
-          <div style="max-width:560px;width:100%;">
-            <div id="upgrade-icon" style="font-size:52px;margin-bottom:20px;line-height:1;"></div>
-            <div style="font-family:var(--mono);font-size:10px;color:var(--warn);letter-spacing:3px;margin-bottom:14px;">🔒 DOSTĘPNE TYLKO W WERSJI HOME</div>
-            <div id="upgrade-title" style="font-family:var(--mono);font-size:22px;color:var(--text1);font-weight:700;margin-bottom:14px;letter-spacing:1px;"></div>
-            <div id="upgrade-desc" style="color:var(--text2);font-size:13px;line-height:1.8;margin-bottom:24px;"></div>
-            <div id="upgrade-features" style="text-align:left;margin-bottom:28px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:18px 22px;"></div>
-            <a href="https://netguardhome.pl/#cennik" target="_blank"
-               style="display:inline-block;background:linear-gradient(135deg,#00d4ff,#00b8d9);color:#000;font-family:var(--mono);font-weight:700;font-size:14px;padding:15px 38px;border-radius:8px;text-decoration:none;letter-spacing:1px;"
-               onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
-              KUP NETGUARD HOME — 149 zł jednorazowo →
-            </a>
-            <div style="margin-top:14px;font-family:var(--mono);font-size:11px;color:var(--text2);">
-              Jednorazowa płatność · licencja dożywotnia &nbsp;·&nbsp;
-              <a href="https://netguardhome.pl/#cennik" target="_blank" style="color:var(--accent);">Zobacz ofertę</a>
-            </div>
           </div>
         </div>
       </div>
@@ -2917,66 +2921,10 @@ function drawTrafficChartShared(id, samples, height) {
 // ============================================================
 // NAVIGATION
 // ============================================================
-const UPGRADE_INFO = {
-  parental: {
-    icon: '🧒',
-    title: 'KONTROLA RODZICIELSKA',
-    desc: 'Monitoruj aktywność dzieci w sieci — śledź czas online, odwiedzane domeny i aktywność nocną. Blokuj niepożądane serwisy jednym kliknięciem.',
-    features: [
-      '📊 Czas online per urządzenie — dzienny i historyczny',
-      '🌐 Historia odwiedzanych domen (top domeny)',
-      '🚫 Blokowanie konkretnych stron i serwisów (YouTube, TikTok, Instagram...)',
-      '🌙 Alert CHILD_NIGHT — aktywność po 22:00',
-      '🔒 Blokada DNS proxy z obsługą DoT i DoH (Android, iOS)',
-    ]
-  },
-  traffic: {
-    icon: '📡',
-    title: 'ANALIZA RUCHU SIECIOWEGO',
-    desc: 'Zobacz co naprawdę dzieje się w Twojej sieci — wykresy pobierania i wysyłania, najbardziej aktywne urządzenia i porty w czasie rzeczywistym.',
-    features: [
-      '📈 Wykres ruchu pobieranie/wysyłanie (ostatnie 10 minut)',
-      '🖥 Top urządzenia według zużycia danych',
-      '🔌 Top porty i aktywne usługi sieciowe',
-      '⚡ Live monitoring aktualizowany co 10 sekund',
-      '📉 Bieżąca prędkość i szczyt pobierania',
-    ]
-  },
-  ai: {
-    icon: '🤖',
-    title: 'KONSOLA AI',
-    desc: 'Asystent bezpieczeństwa sieci odpowiadający po polsku. Analizuje zagrożenia, podsumowuje stan sieci i podpowiada co zrobić — wszystko lokalnie, bez chmury.',
-    features: [
-      '🤖 Asystent w języku polskim',
-      '🔍 Analiza zagrożeń i alertów z Twojej sieci',
-      '📋 Bieżące podsumowanie stanu sieci i urządzeń',
-      '💡 Rekomendacje działań bezpieczeństwa',
-      '🧠 Lokalny LLM (Ollama) — dane nie opuszczają sieci',
-    ]
-  }
-};
-
-function populateUpgradePage(name) {
-  const info = UPGRADE_INFO[name];
-  if (!info) return;
-  document.getElementById('upgrade-icon').textContent = info.icon;
-  document.getElementById('upgrade-title').textContent = info.title;
-  document.getElementById('upgrade-desc').textContent = info.desc;
-  document.getElementById('upgrade-features').innerHTML =
-    info.features.map(f =>
-      '<div style="padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.06);color:var(--text1);font-size:13px;">' + f + '</div>'
-    ).join('') +
-    '<div style="padding-top:10px;font-size:11px;color:var(--text2);font-family:var(--mono);">...i wiele więcej funkcji w wersji Home</div>';
-}
-
 function showPage(name) {
-  const premiumPages = ['parental', 'traffic', 'ai'];
-  const blocked = premiumPages.includes(name) && LICENSE_PLAN_LOCAL === 'free';
-  const pageId = blocked ? 'upgrade' : name;
-
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById('page-' + pageId).classList.add('active');
+  document.getElementById('page-' + name).classList.add('active');
   document.querySelectorAll('.nav-item').forEach(n => {
     if (n.getAttribute('onclick') && n.getAttribute('onclick').includes(name)) n.classList.add('active');
   });
@@ -2984,9 +2932,6 @@ function showPage(name) {
   document.querySelectorAll('.mobile-nav-item').forEach(b => b.classList.remove('active'));
   const mn = document.getElementById('mn-' + name);
   if (mn) mn.classList.add('active');
-
-  if (blocked) { populateUpgradePage(name); return; }
-
   if (name === 'devices') initDevices();
   if (name === 'alerts') initAlerts();
   if (name === 'threats') initThreats();
@@ -3477,12 +3422,19 @@ async function checkLicense() {
     isGateway  = r.is_gateway  || false;
     gatewayWan = r.wan_iface   || null;
     gatewayLan = r.lan_iface   || null;
-    const banner = document.getElementById('demo-banner');
+    const demoBanner  = document.getElementById('demo-banner');
+    const trialBanner = document.getElementById('trial-banner');
+    demoBanner.style.display  = 'none';
+    trialBanner.style.display = 'none';
     if (LICENSE_PLAN_LOCAL === 'free') {
-      banner.style.display = 'flex';
+      demoBanner.style.display = 'flex';
       updateDemoDeviceCount();
-    } else {
-      banner.style.display = 'none';
+    } else if (LICENSE_PLAN_LOCAL === 'trial') {
+      trialBanner.style.display = 'flex';
+      const el = document.getElementById('trial-days-left');
+      if (el) el.textContent = r.trial_days_left || '?';
+    } else if (LICENSE_PLAN_LOCAL === 'trial_expired') {
+      showTrialExpiredModal();
     }
     updateGatewayUI();
   } catch(e) {}
@@ -3492,6 +3444,32 @@ function updateDemoDeviceCount() {
   if (LICENSE_PLAN_LOCAL !== 'free') return;
   const el = document.getElementById('demo-dev-count');
   if (el) el.textContent = `${devices.length}/${DEMO_MAX_DEVICES}`;
+}
+
+function showTrialExpiredModal() {
+  const overlay = document.getElementById('trial-expired-overlay');
+  if (overlay) overlay.style.display = 'flex';
+}
+
+function closeTrialExpiredModal() {
+  const overlay = document.getElementById('trial-expired-overlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
+async function activateTrialLicense() {
+  const input = document.getElementById('trial-license-input');
+  const msg   = document.getElementById('trial-license-msg');
+  const key   = (input?.value || '').trim();
+  if (!key) { msg.style.color = 'var(--warn)'; msg.textContent = 'Wpisz klucz licencyjny.'; return; }
+  try {
+    const r = await apiPost('/api/activate_license', { license_key: key });
+    if (r && r.ok) {
+      msg.style.color = 'var(--accent2)'; msg.textContent = 'Klucz aktywowany! Odświeżam...';
+      setTimeout(() => { closeTrialExpiredModal(); checkLicense(); }, 1200);
+    } else {
+      msg.style.color = 'var(--warn)'; msg.textContent = r?.error || 'Nieprawidłowy klucz.';
+    }
+  } catch(e) { msg.style.color = 'var(--warn)'; msg.textContent = 'Błąd połączenia.'; }
 }
 
 window.addEventListener('load', async () => {

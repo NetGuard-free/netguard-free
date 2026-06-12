@@ -22,7 +22,7 @@ import psutil  # noqa: F402
 
 from netguard.config import save_devices, is_scheduled_blocked, _hash_password, _verify_password, save_config
 from netguard.models import COMMON_PORTS
-from netguard.license import get_plan, is_paid, get_limits
+from netguard.license import get_plan, is_paid, get_limits, get_trial_days_left
 from netguard.gateway import detect_gateway_mode, setup_nat, cleanup_nat
 from netguard import VERSION, _update_available, _latest_version
 
@@ -655,6 +655,9 @@ def start_dashboard(scanner, analyzer, ai, port: int = 8767,
             "plan": plan,
             "is_home": plan == "home",
             "is_enterprise": plan == "enterprise",
+            "is_trial": plan == "trial",
+            "is_trial_expired": plan == "trial_expired",
+            "trial_days_left": get_trial_days_left(cfg),
             "is_paid": is_paid(plan),
             "max_devices": limits["max_devices"],
             "history_days": limits["history_days"],
@@ -663,6 +666,20 @@ def start_dashboard(scanner, analyzer, ai, port: int = 8767,
             "wan_iface": GATEWAY_WAN,
             "lan_iface": GATEWAY_LAN,
         })
+
+    @app.route('/api/activate_license', methods=['POST'])
+    @require_token
+    def api_activate_license():
+        data = request.json or {}
+        key = data.get('license_key', '').strip()
+        if not key:
+            return jsonify({"ok": False, "error": "Brak klucza"}), 400
+        from netguard.license import verify_license
+        if not verify_license(key):
+            return jsonify({"ok": False, "error": "Nieprawidłowy klucz licencyjny"}), 400
+        cfg['license_key'] = key
+        save_config(cfg)
+        return jsonify({"ok": True})
 
     @app.route('/api/version')
     def api_version():

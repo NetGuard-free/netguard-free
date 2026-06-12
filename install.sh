@@ -227,6 +227,7 @@ run_wizard() {
     # sha256sum istnieje na Linux, shasum na macOS — używamy Python jako wspólny mianownik
     PWD_HASH=$($PYTHON_CMD -c "import hashlib,sys; print(hashlib.sha256(sys.argv[1].encode()).hexdigest())" "$PWD1")
 
+    TRIAL_START=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
     cat > "$NETGUARD_DIR/config.json" << EOF
 {
   "network_range": "$DEFAULT_NET",
@@ -235,6 +236,7 @@ run_wizard() {
   "dashboard_port": 8767,
   "admin_password_hash": "$PWD_HASH",
   "packet_capture": true,
+  "trial_start": "$TRIAL_START",
   "smtp": {
     "host": "smtp.gmail.com",
     "port": 587,
