@@ -3447,11 +3447,13 @@ function updateDemoDeviceCount() {
 }
 
 function showTrialExpiredModal() {
+  if (sessionStorage.getItem('trialExpiredDismissed')) return;
   const overlay = document.getElementById('trial-expired-overlay');
   if (overlay) overlay.style.display = 'flex';
 }
 
 function closeTrialExpiredModal() {
+  sessionStorage.setItem('trialExpiredDismissed', '1');
   const overlay = document.getElementById('trial-expired-overlay');
   if (overlay) overlay.style.display = 'none';
 }
